@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
 
-contract Battlehsips {
+contract Battleships {
         struct Board{
             bool valid;
             // N*N matrix of bits to store hits
@@ -20,7 +20,7 @@ contract Battlehsips {
         struct Game{
             bool valid;
             // host is always player[0]
-            Player[2] players;
+            Player[] players;
             // 0: waiting; 1: setting stake; 2: placing ships; 
             // 3: player[0] firing turn; 4: player[1] response turn; 
             // 5: player[1] firing turn; 6: player[0] response turn; 
@@ -51,8 +51,8 @@ contract Battlehsips {
     function newGame(bool isPrivate) public returns (uint) {
         uint gameID = gameCounter;
         gameCounter++;
-        Game memory game;
-        Player memory host;
+        Game storage game = openGames[gameID];
+        Player storage host = game.players[0];
         host.playerAddress = msg.sender;
         game.players[0] = host;
         game.state = 0;
