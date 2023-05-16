@@ -1,3 +1,5 @@
+const Battleships = artifacts.require("Battleships");
+
 contract("Battleships", function (accounts) {
     let battleships;
   
@@ -7,7 +9,7 @@ contract("Battleships", function (accounts) {
   
     describe("Creating a new game", async () => {
       it("No games exist in the contract.", async () => {
-        const currGames = await battleships.getGamePosition(0)
+        const currGames = await battleships.checkGameState(0)
         assert.equal(currGames, 8, "Somehow game #0 exists!");
       });
     });
