@@ -20,7 +20,7 @@ contract Battleships {
         struct Game{
             bool valid;
             // host is always player[0]
-            Player[] players;
+            Player[2] players;
             // 0: waiting; 1: setting stake; 2: placing ships; 
             // 3: player[0] firing turn; 4: player[1] response turn; 
             // 5: player[1] firing turn; 6: player[0] response turn; 
@@ -38,6 +38,8 @@ contract Battleships {
     // define a set of games available to join and a set of games already full
     mapping(uint => Game) private openGames;
     mapping(uint => Game) private fullGames;
+    Game private gameTrampoline;
+    Player private playerTrampoline;
     // used in generating UUIDs for the games
     // for now we are gonna use this as-is
     // TODO: deal with it overflowing
@@ -47,18 +49,23 @@ contract Battleships {
         gameCounter = 0;
     }
 
+    event ShareID(address _from, address _to, uint _id);
+
     // create a Game value, add it to openGames, populate the Player[0]
-    function newGame(bool isPrivate) public returns (uint) {
+    function newGame(bool isPrivate) public {
         uint gameID = gameCounter;
         gameCounter++;
-        Game storage game = openGames[gameID];
-        Player storage host = game.players[0];
+        Game storage game = gameTrampoline;
+        Player storage host = playerTrampoline;
         host.playerAddress = msg.sender;
+        host.valid = true;
         game.players[0] = host;
         game.state = 0;
         game.privateGame = isPrivate;
+        game.valid = true;
         openGames[gameID] = game;
-        return gameID;
+        emit ShareID(address(this), msg.sender, gameID);
+        return;
     }
 
     function getGamePosition (uint gameID) private view returns (Game memory){
