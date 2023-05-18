@@ -35,21 +35,24 @@ contract Battleships {
             bool privateGame;
         }
 
-    // define a set of games available to join and a set of games already full
     mapping(uint => Game) private openGames;
-    mapping(uint => Game) private fullGames;
+
     Game private gameTrampoline;
     Player private playerTrampoline;
     // used in generating UUIDs for the games
     // for now we are gonna use this as-is
+    // start at 1 as 0 is used for a non-existing game
     // TODO: deal with it overflowing
     uint private gameCounter;
+    uint private lastOpenGame;
 
     constructor() {
-        gameCounter = 0;
+        gameCounter = 1;
+        lastOpenGame = 1;
     }
 
     event ShareID(address _from, address _to, uint _id);
+    event GameStart(uint _id, address _host, address _challenger);
 
     // create a Game value, add it to openGames, populate the Player[0]
     function newGame(bool isPrivate) public {
@@ -68,14 +71,11 @@ contract Battleships {
         return;
     }
 
+    // fails when called on gameID of 0 (non-existing game)
     function getGamePosition (uint gameID) private view returns (Game memory){
         Game memory gameChecked;
-        if(openGames[gameID].valid){
-            gameChecked = openGames[gameID];
-        }
-        else if(fullGames[gameID].valid){
-             gameChecked = fullGames[gameID];
-        }
+        assert(gameID != 0);
+        gameChecked = openGames[gameID];
         return gameChecked;
     }
 
@@ -104,5 +104,29 @@ contract Battleships {
         }
         else 
             return(address(0));
+    }
+
+    function joinGame(uint gameID) public {
+        if(gameID == 0){
+            // pick an unassigned game in sequential order
+            gameID = lastOpenGame;
+            while(openGames[gameID].valid == false && openGames[gameID].state == 0 && gameID <= gameCounter){
+                gameID++;
+            }
+            // update the lastOpenGame counter no matter what
+            lastOpenGame = gameID;
+        }
+        // if the game wasn't valid, throw an error
+        assert(openGames[gameID].valid);
+        // set msg sender as this game's player 2
+        Player storage challenger = playerTrampoline;
+        challenger.playerAddress = msg.sender;
+        challenger.valid = true;
+        openGames[gameID].players[1] = challenger;
+        // update this game's status
+        openGames[gameID].state = 1;
+        // alert the players
+        emit GameStart(gameID, openGames[gameID].players[0].playerAddress, msg.sender);
+        return;
     }
 }
