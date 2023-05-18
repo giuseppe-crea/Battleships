@@ -110,7 +110,12 @@ contract Battleships {
         if(gameID == 0){
             // pick an unassigned game in sequential order
             gameID = lastOpenGame;
-            while(openGames[gameID].valid == false && openGames[gameID].state == 0 && gameID <= gameCounter){
+            while(gameID <= gameCounter){
+                Game memory game = openGames[gameID];
+                // ignore games with sender as host
+                if(game.valid == true && game.state == 0 && game.players[0].playerAddress != msg.sender){
+                    break;
+                }
                 gameID++;
             }
             // update the lastOpenGame counter no matter what
