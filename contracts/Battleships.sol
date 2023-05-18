@@ -113,7 +113,7 @@ contract Battleships {
             while(gameID <= gameCounter){
                 Game memory game = openGames[gameID];
                 // ignore games with sender as host
-                if(game.valid == true && game.state == 0 && game.players[0].playerAddress != msg.sender){
+                if(game.valid == true && game.state == 0 && game.players[0].playerAddress != msg.sender && !game.privateGame){
                     break;
                 }
                 gameID++;
