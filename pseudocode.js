@@ -52,7 +52,7 @@ Game Contract: {
 		// basic safety precautions
 		assert gameId in Full_games
 		assert msg.sender in gameId.players
-		assert gameId.stake is not None
+		assert gameId.stake is not None // ???
 		assert gameId.state == 1
 		// see if this player's opponent has already proposed a stake
 		playerIndex = find index of msg.sender in gameId.players

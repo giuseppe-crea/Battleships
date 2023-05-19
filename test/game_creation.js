@@ -9,7 +9,7 @@ contract("Battleships", function (accounts) {
     describe("Creating a new game", async () => {
       it("No games exist in the contract.", async () => {
         const currGames = await battleships.checkGameState(1);
-        assert.equal(currGames, 8, "Somehow game #1 exists!");
+        assert.equal(currGames, 9, "Somehow game #1 exists!");
       });
       it("One game now exists in the contract.", async () => {
         const newGameID = await battleships.newGame(false);

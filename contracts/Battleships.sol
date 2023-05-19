@@ -2,38 +2,48 @@
 pragma solidity >=0.4.22 <0.9.0;
 
 contract Battleships {
-        struct Board{
-            bool valid;
-            // N*N matrix of bits to store hits
-            bool[8][8] shots;
-            uint totalPieces;
-        }
+    enum GameStates{
+        WAITING, 
+        SETTING_STAKE, 
+        ACCEPTING_PAYMENT,
+        PLACING_SHIPS, 
+        P0_FIRING,
+        P1_CHECKING,
+        P1_FIRING,
+        P0_CHECKING,
+        DONE,
+        NONE
+    }
 
-        struct Player{
-            bool valid;
-            address playerAddress;
-            uint proposedStake;
-            bytes32 boardTreeRoot;
-            Board shots_board;
-        }
+    struct Board{
+        bool valid;
+        // N*N matrix of bits to store hits
+        bool[8][8] shots;
+        uint totalPieces;
+    }
 
-        struct Game{
-            bool valid;
-            // host is always player[0]
-            Player[2] players;
-            // 0: waiting; 1: setting stake; 2: placing ships; 
-            // 3: player[0] firing turn; 4: player[1] response turn; 
-            // 5: player[1] firing turn; 6: player[0] response turn; 
-            // 7: done; 8: doesn't exist
-            uint state;
-            // used for foul accusation, a foul is triggered after 5 blocks
-            uint blockNumber;
-            // player 0 or player 1
-            // might turn it into address, we will see
-            bool accuser;
-            // not required: whether or not this game should be in the public pool of joinable games
-            bool privateGame;
-        }
+    struct Player{
+        bool valid;
+        address playerAddress;
+        uint proposedStake;
+        bytes32 boardTreeRoot;
+        Board shots_board;
+    }
+
+    struct Game{
+        bool valid;
+        // host is always player[0]
+        Player[2] players;
+        GameStates state;
+        uint decidedStake;
+        // used for foul accusation, a foul is triggered after 5 blocks
+        uint blockNumber;
+        // player 0 or player 1
+        // might turn it into address, we will see
+        bool accuser;
+        // whether or not this game should be in the public pool of joinable games
+        bool privateGame;
+    }
 
     mapping(uint => Game) private openGames;
 
@@ -51,8 +61,11 @@ contract Battleships {
         lastOpenGame = 1;
     }
 
-    event ShareID(address _from, address _to, uint _id);
-    event GameStart(uint _id, address _host, address _challenger);
+    event ShareID(address _from, address _to, uint _gameID);
+    event GameStart(uint _gameID, address _host, address _challenger);
+    // Stake-agreement events
+    event SuggestedStake(uint _gameID, address _from, address _to, uint _stakeValue);
+    event GamePayable(uint _gameID, address _host, address _challenger, uint _stakeValue);
 
     // create a Game value, add it to openGames, populate the Player[0]
     function newGame(bool isPrivate) public {
@@ -63,7 +76,7 @@ contract Battleships {
         host.playerAddress = msg.sender;
         host.valid = true;
         game.players[0] = host;
-        game.state = 0;
+        game.state = GameStates.WAITING;
         game.privateGame = isPrivate;
         game.valid = true;
         openGames[gameID] = game;
@@ -79,18 +92,18 @@ contract Battleships {
         return gameChecked;
     }
 
-    function checkGameState(uint gameID) public view returns (uint) {
+    function checkGameState(uint gameID) public view returns (GameStates) {
         Game memory game = getGamePosition(gameID);
         if (game.valid){
             return game.state;
         }
         else 
-            return(8);
+            return(GameStates.NONE);
     }
 
     function checkGamePlayerOne(uint gameID) public view returns (address) {
         Game memory game = getGamePosition(gameID);
-        if (game.valid){
+        if (game.valid && game.players[0].valid){
             return game.players[0].playerAddress;
         }
         else 
@@ -99,7 +112,7 @@ contract Battleships {
 
     function checkGamePlayerTwo(uint gameID) public view returns (address) {
         Game memory game = getGamePosition(gameID);
-        if (game.valid){
+        if (game.valid && game.players[1].valid){
             return game.players[1].playerAddress;
         }
         else 
@@ -113,7 +126,7 @@ contract Battleships {
             while(gameID <= gameCounter){
                 Game memory game = openGames[gameID];
                 // ignore games with sender as host
-                if(game.valid == true && game.state == 0 && game.players[0].playerAddress != msg.sender && !game.privateGame){
+                if(game.valid == true && game.state == GameStates.WAITING && game.players[0].playerAddress != msg.sender && !game.privateGame){
                     break;
                 }
                 gameID++;
@@ -129,9 +142,66 @@ contract Battleships {
         challenger.valid = true;
         openGames[gameID].players[1] = challenger;
         // update this game's status
-        openGames[gameID].state = 1;
+        openGames[gameID].state = GameStates.SETTING_STAKE;
         // alert the players
         emit GameStart(gameID, openGames[gameID].players[0].playerAddress, msg.sender);
         return;
+    }
+
+    // Function to propose and agree upon a stake between players
+    function proposeStake(uint gameID, uint stakeValue) public{
+        Game memory game = openGames[gameID];
+        assert(game.valid);
+        assert(game.state == GameStates.SETTING_STAKE);
+        assert(game.players[0].playerAddress == msg.sender || game.players[1].playerAddress == msg.sender);
+        // Check whether or not this player's opponent has already proposed a stake
+        uint opponentIndex;
+        uint stakerIndex;
+        if(msg.sender == game.players[0].playerAddress){
+            opponentIndex = 1;
+            stakerIndex = 0;
+        } else {
+            opponentIndex = 0;
+            stakerIndex = 1;
+        }
+        uint opponentStake = game.players[opponentIndex].proposedStake;
+        // set this player's proposed stake to their message
+        openGames[gameID].players[stakerIndex].proposedStake = stakeValue;
+        // if the opponent has proposed a stake we check whether or not it equals the one proposed by us
+        // 0 is not a valid stake
+        if(opponentStake != 0 && opponentStake == stakeValue){
+            openGames[gameID].decidedStake = stakeValue;
+            openGames[gameID].state = GameStates.ACCEPTING_PAYMENT;
+            emit GamePayable(gameID, game.players[0].playerAddress, game.players[1].playerAddress, stakeValue);
+        }else{
+            emit SuggestedStake(gameID, msg.sender, game.players[opponentIndex].playerAddress, stakeValue);
+        }
+        return;
+    }
+
+    function checkStakePlayerOne(uint gameID) public view returns (uint) {
+        Game memory game = getGamePosition(gameID);
+        if (game.valid && game.players[0].valid){
+            return game.players[0].proposedStake;
+        }
+        else 
+            return(0);
+    }
+
+    function checkStakePlayerTwo(uint gameID) public view returns (uint) {
+        Game memory game = getGamePosition(gameID);
+        if (game.valid && game.players[1].valid){
+            return game.players[1].proposedStake;
+        }
+        else 
+            return(0);
+    }
+
+    function checkStakeGame(uint gameID) public view returns (uint) {
+        Game memory game = getGamePosition(gameID);
+        if (game.valid && game.players[0].valid && game.players[1].valid)
+            return game.decidedStake;
+        else
+            return(0);
     }
 }
