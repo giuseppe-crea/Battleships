@@ -75,6 +75,21 @@ contract Battleships {
     error StakeAlreadyDeposited();
     error WrongStakeAmount(uint expectedStakeValue);
 
+    modifier gameExists(uint gameID){
+        assert(openGames[gameID].valid);
+        _;
+    }
+
+    modifier isInGame(uint gameID){
+        assert((openGames[gameID].players[0].playerAddress == msg.sender) || (openGames[gameID].players[1].playerAddress == msg.sender));
+        _;
+    }
+
+    modifier assertState(uint gameID, GameStates _state){
+        assert(openGames[gameID].state == _state);
+        _;
+    }
+
     // create a Game value, add it to openGames, populate the Player[0]
     function newGame(bool isPrivate) public {
         uint gameID = gameCounter;
@@ -99,9 +114,11 @@ contract Battleships {
             // pick an unassigned game in sequential order
             gameID = lastOpenGame;
             while(gameID <= gameCounter){
-                Game memory game = openGames[gameID];
-                // ignore games with sender as host
-                if(game.valid == true && game.state == GameStates.WAITING && game.players[0].playerAddress != msg.sender && !game.privateGame){
+                // ignore games with sender as host (you can still join your own games directly if you're that lonely)
+                if(openGames[gameID].valid == true && 
+                    openGames[gameID].state == GameStates.WAITING && 
+                    openGames[gameID].players[0].playerAddress != msg.sender && 
+                    !openGames[gameID].privateGame){
                     break;
                 }
                 gameID++;
@@ -124,47 +141,33 @@ contract Battleships {
         return;
     }
 
-    // fails when called on gameID of 0 (non-existing game)
-    function getGamePosition (uint gameID) private view returns (Game memory){
-        Game memory gameChecked;
-        assert(gameID != 0);
-        gameChecked = openGames[gameID];
-        return gameChecked;
-    }
-
     function checkGameState(uint gameID) public view returns (GameStates) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid){
-            return game.state;
+        if (openGames[gameID].valid){
+            return openGames[gameID].state;
         }
         else 
             return(GameStates.NONE);
     }
 
     function checkGamePlayerOne(uint gameID) public view returns (address) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[0].valid){
-            return game.players[0].playerAddress;
+        if (openGames[gameID].valid && openGames[gameID].players[0].valid){
+            return openGames[gameID].players[0].playerAddress;
         }
         else 
             return(address(0));
     }
 
     function checkGamePlayerTwo(uint gameID) public view returns (address) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[1].valid){
-            return game.players[1].playerAddress;
+        if (openGames[gameID].valid && openGames[gameID].players[1].valid){
+            return openGames[gameID].players[1].playerAddress;
         }
         else 
             return(address(0));
     }
 
     // Function to propose and agree upon a stake between players
-    function proposeStake(uint gameID, uint stakeValue) public{
+    function proposeStake(uint gameID, uint stakeValue) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.SETTING_STAKE) public{
         Game memory game = openGames[gameID];
-        assert(game.valid);
-        assert(game.state == GameStates.SETTING_STAKE);
-        assert(game.players[0].playerAddress == msg.sender || game.players[1].playerAddress == msg.sender);
         // Check whether or not this player's opponent has already proposed a stake
         uint opponentIndex;
         uint stakerIndex;
@@ -191,38 +194,39 @@ contract Battleships {
     }
 
     function checkStakePlayerOne(uint gameID) public view returns (uint) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[0].valid){
-            return game.players[0].proposedStake;
+        if (openGames[gameID].valid && openGames[gameID].players[0].valid){
+            return openGames[gameID].players[0].proposedStake;
         }
         else 
             return(0);
     }
 
     function checkStakePlayerTwo(uint gameID) public view returns (uint) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[1].valid){
-            return game.players[1].proposedStake;
+        if (openGames[gameID].valid && openGames[gameID].players[1].valid){
+            return openGames[gameID].players[1].proposedStake;
         }
         else 
             return(0);
     }
 
     function checkStakeGame(uint gameID) public view returns (uint) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[0].valid && game.players[1].valid)
-            return game.decidedStake;
+        if (openGames[gameID].valid && openGames[gameID].players[0].valid && openGames[gameID].players[1].valid)
+            return openGames[gameID].decidedStake;
         else
             return(0);
     }
     
-    function payStake(uint gameID) external payable {
+    function payStake(uint gameID) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.ACCEPTING_PAYMENT) external payable {
         // make sure the game exists and has to be paid
+        /*
         if(!(openGames[gameID].valid) || !(openGames[gameID].state == GameStates.ACCEPTING_PAYMENT))
             revert InvalidGameID();
+        */
         // make sure the sender is part of the game
+        /*
         if(!(msg.sender == openGames[gameID].players[0].playerAddress || msg.sender == openGames[gameID].players[1].playerAddress))
             revert NotInGame();
+        */
         // check that this user has not paid already
         if((msg.sender == openGames[gameID].players[0].playerAddress && openGames[gameID].players[0].hasPaidStake) ||
             (msg.sender == openGames[gameID].players[1].playerAddress && openGames[gameID].players[1].hasPaidStake))
@@ -250,28 +254,29 @@ contract Battleships {
     }
 
     function checkPaymentPlayerOne(uint gameID) public view returns (bool) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[0].valid){
-            return game.players[0].hasPaidStake;
+        if (openGames[gameID].valid && openGames[gameID].players[0].valid){
+            return openGames[gameID].players[0].hasPaidStake;
         }
         else 
             return(false);
     }
 
     function checkPaymentPlayerTwo(uint gameID) public view returns (bool) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[1].valid){
-            return game.players[1].hasPaidStake;
+        if (openGames[gameID].valid && openGames[gameID].players[1].valid){
+            return openGames[gameID].players[1].hasPaidStake;
         }
         else 
             return(false);
     }
 
     function checkGamePayable(uint gameID) public view returns (bool) {
-        Game memory game = getGamePosition(gameID);
-        if (game.valid && game.players[0].valid && game.players[1].valid)
-            return game.canPay;
+        if (openGames[gameID].valid && openGames[gameID].players[0].valid && openGames[gameID].players[1].valid)
+            return openGames[gameID].canPay;
         else
             return(false);
     }
+    /*
+    function PlaceShips(bytes32 boardRoot, gameID){
+
+    }*/
 }
