@@ -216,13 +216,12 @@ contract Battleships {
             return(0);
     }
     
-    // TODO: write unit tests for this
     function payStake(uint gameID) external payable {
         // make sure the game exists and has to be paid
         if(!(openGames[gameID].valid) || !(openGames[gameID].state == GameStates.ACCEPTING_PAYMENT))
             revert InvalidGameID();
         // make sure the sender is part of the game
-        if(!(msg.sender == openGames[gameID].players[0].playerAddress) || !(msg.sender == openGames[gameID].players[1].playerAddress))
+        if(!(msg.sender == openGames[gameID].players[0].playerAddress || msg.sender == openGames[gameID].players[1].playerAddress))
             revert NotInGame();
         // check that this user has not paid already
         if((msg.sender == openGames[gameID].players[0].playerAddress && openGames[gameID].players[0].hasPaidStake) ||
