@@ -2,6 +2,8 @@
 pragma solidity >=0.4.22 <0.9.0;
 
 contract Battleships {
+    uint8 public constant NUMBER_OF_SHIP_SQUARES = 20;
+    uint8 public constant BOARD_SIZE = 8;
     enum GameStates{
         WAITING, 
         SETTING_STAKE, 
@@ -15,11 +17,16 @@ contract Battleships {
         NONE
     }
 
+    // In this struct we save the view a player has of its opponent's board
     struct Board{
         bool valid;
         // N*N matrix of bits to store hits
-        bool[8][8] shots;
+        bool[BOARD_SIZE][BOARD_SIZE] shots;
+        // # of enemy pieces still left on the board
+        // goes down by one each time we receive one 'you hit' event
         uint totalPieces;
+        // 8*8, we use this to avoid cheating
+        uint totalShots;
     }
 
     struct Player{
@@ -45,12 +52,15 @@ contract Battleships {
         bool accuser;
         // whether or not this game should be in the public pool of joinable games
         bool privateGame;
+        address winner;
     }
 
     mapping(uint => Game) private openGames;
 
     Game private gameTrampoline;
     Player private playerTrampoline;
+    Board private trampolineBoard;
+    bool[BOARD_SIZE][BOARD_SIZE] private trampolineShots;
     // used in generating UUIDs for the games
     // for now we are gonna use this as-is
     // start at 1 as 0 is used for a non-existing game
@@ -69,6 +79,9 @@ contract Battleships {
     event GamePayable(uint _gameID, address _host, address _challenger, uint _stakeValue);
     event StakePaid(uint _gameID, address _whoPaid);
     event AcceptingBoards(uint _gameID);
+    event PlayerZeroRound(uint _gameID);
+    event ShotsFired(uint _gameID, uint8 _x, uint8 y);
+    event Victory(uint _gameID, address _winner);
 
     error InvalidGameID();
     error NotInGame();
@@ -217,17 +230,6 @@ contract Battleships {
     }
     
     function payStake(uint gameID) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.ACCEPTING_PAYMENT) external payable {
-        // make sure the game exists and has to be paid
-        /*
-        if(!(openGames[gameID].valid) || !(openGames[gameID].state == GameStates.ACCEPTING_PAYMENT))
-            revert InvalidGameID();
-        */
-        // make sure the sender is part of the game
-        /*
-        if(!(msg.sender == openGames[gameID].players[0].playerAddress || msg.sender == openGames[gameID].players[1].playerAddress))
-            revert NotInGame();
-        */
-        // check that this user has not paid already
         if((msg.sender == openGames[gameID].players[0].playerAddress && openGames[gameID].players[0].hasPaidStake) ||
             (msg.sender == openGames[gameID].players[1].playerAddress && openGames[gameID].players[1].hasPaidStake))
             revert StakeAlreadyDeposited();
@@ -275,8 +277,81 @@ contract Battleships {
         else
             return(false);
     }
-    /*
-    function PlaceShips(bytes32 boardRoot, gameID){
+    
+    // TODO: Write Tests for everything below this line
+    // TODO: Maybe move the Board instantiation outside of this function
+    function PlaceShips(uint gameID, bytes32 boardRoot) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.PLACING_SHIPS) public{
+        uint index;
+        uint oppIdx;
+        msg.sender == openGames[gameID].players[0].playerAddress ? index = 0 : index = 1;
+        msg.sender == openGames[gameID].players[0].playerAddress ? oppIdx = 1 : oppIdx = 0;
+        require(openGames[gameID].players[index].boardTreeRoot == 0x0);
+        // Instantiate a new shots board
+        // this would be incredibly inefficient on anything larger than our current values
+        // since we are playing HUMAN games, we use human values of BOARD_SIZE
+        // otherwise a sparse implementation is preferred
+        for(uint8 i = 0; i < BOARD_SIZE; i++){
+            for(uint8 j = 0; j < BOARD_SIZE; j++){
+                trampolineShots[i][j] = false;
+            }
+        }
+        // Instantiate the Board struct itself and assign it to a player
+        bool[BOARD_SIZE][BOARD_SIZE] storage playerShots = trampolineShots;
+        Board storage playerBoard = trampolineBoard;
+        trampolineBoard.valid = true;
+        trampolineBoard.shots = playerShots;
+        trampolineBoard.totalPieces = NUMBER_OF_SHIP_SQUARES;
+        trampolineBoard.totalShots = BOARD_SIZE;
+        openGames[gameID].players[index].shots_board = playerBoard;
+        // save the received boardRoot, finally
+        openGames[gameID].players[index].boardTreeRoot = boardRoot;
+        if(openGames[gameID].players[oppIdx].boardTreeRoot != 0x0){
+            openGames[gameID].state = GameStates.P0_FIRING;
+            emit PlayerZeroRound(gameID);
+        }
+    }
 
-    }*/
+    // TODO: Write getter functions for the player boards and the tree
+
+    function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
+        address verifiedWinner;
+        // TODO: verify the merkle board for the winner first of all
+        // this requires asking the winner for their board
+        // if that fails, verify it for the loser and pay THEM out if it succeeds
+
+        // finally set the contract as payable
+        openGames[gameID].canPay = true;
+        openGames[gameID].winner = verifiedWinner;
+        emit Victory(gameID, msg.sender);
+    }
+
+    // locations are 0-indexed
+    function FireTorpedo(uint gameID, uint8 location_x, uint8 location_y) gameExists(gameID) isInGame(gameID) public {
+        uint index;
+        uint oppIdx;
+        GameStates legalState;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            index = 0;
+            oppIdx = 1;
+            legalState = GameStates.P0_FIRING;
+        } else {
+            index = 1;
+            oppIdx = 0;
+            legalState = GameStates.P1_FIRING;
+        }
+        assert(openGames[gameID].state == legalState);
+        // Rotate into correct next state
+        legalState == GameStates.P0_FIRING ? legalState = GameStates.P1_CHECKING : legalState = GameStates.P0_CHECKING;
+        openGames[gameID].state = legalState;
+        // Now for some game logic
+        // whatever happens, we lower the totalShots counter of our system by one
+        openGames[gameID].players[index].shots_board.totalShots--;
+        // Then we evaluate whether or not this is zero. If it is, This party wins automatically.
+        // We do this here to avoid opponents stalling out on the reply for 5 blocks on what is a foregone conclusion
+        if (openGames[gameID].players[index].shots_board.totalShots == 0){
+            VerifyWinner(gameID, index, oppIdx);
+        } else {
+            emit ShotsFired(gameID, location_x, location_y);
+        }
+    }
 }
