@@ -67,6 +67,10 @@ Game Contract: {
 		emit event for gameId.players[opponentIndex] asking if value is okay as a stake
 		return
 	}
+
+	Pay_stake(){
+		
+	}
 	
 	Place_ships(merkle tree root, gameId){
 		assert msg.sender in gameId.players
