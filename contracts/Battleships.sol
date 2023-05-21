@@ -79,7 +79,8 @@ contract Battleships {
     event GamePayable(uint _gameID, address _host, address _challenger, uint _stakeValue);
     event StakePaid(uint _gameID, address _whoPaid);
     event AcceptingBoards(uint _gameID);
-    event PlayerZeroRound(uint _gameID);
+    event BoardAcknowledgeEvent(uint _gameID, address _player);
+    event PlayerZeroTurn(uint _gameID);
     event ShotsFired(uint _gameID, uint8 _x, uint8 y);
     event Victory(uint _gameID, address _winner);
 
@@ -100,6 +101,12 @@ contract Battleships {
 
     modifier assertState(uint gameID, GameStates _state){
         assert(openGames[gameID].state == _state);
+        _;
+    }
+
+    modifier playerInRange(uint gameID, uint index){
+        assert(openGames[gameID].players[index].valid);
+        assert(index < openGames[gameID].players.length);
         _;
     }
 
@@ -278,7 +285,6 @@ contract Battleships {
             return(false);
     }
     
-    // TODO: Write Tests for everything below this line
     // TODO: Maybe move the Board instantiation outside of this function
     function PlaceShips(uint gameID, bytes32 boardRoot) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.PLACING_SHIPS) public{
         uint index;
@@ -305,26 +311,45 @@ contract Battleships {
         openGames[gameID].players[index].shots_board = playerBoard;
         // save the received boardRoot, finally
         openGames[gameID].players[index].boardTreeRoot = boardRoot;
+        emit BoardAcknowledgeEvent(gameID, msg.sender);
         if(openGames[gameID].players[oppIdx].boardTreeRoot != 0x0){
             openGames[gameID].state = GameStates.P0_FIRING;
-            emit PlayerZeroRound(gameID);
+            emit PlayerZeroTurn(gameID);
         }
     }
 
-    // TODO: Write getter functions for the player boards and the tree
-
-    function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
-        address verifiedWinner;
-        // TODO: verify the merkle board for the winner first of all
-        // this requires asking the winner for their board
-        // if that fails, verify it for the loser and pay THEM out if it succeeds
-
-        // finally set the contract as payable
-        openGames[gameID].canPay = true;
-        openGames[gameID].winner = verifiedWinner;
-        emit Victory(gameID, msg.sender);
+    function getPlayerBoardRoot(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) private view returns(bytes32){
+        return openGames[gameID].players[index].boardTreeRoot;
     }
 
+    function getPlayerOneBoardRoot(uint gameID) public view returns (bytes32){
+        return getPlayerBoardRoot(gameID, 0);
+    }
+
+    function getPlayerTwoBoardRoot(uint gameID) public view returns (bytes32){
+        return getPlayerBoardRoot(gameID, 1);
+    }
+
+    // We should never have any use for these following functions
+    // Marking them as DEPRECATED now
+    // we will see if they survive the cutting room floor
+    
+    // DEPRECATED
+    function getPlayerShotsBoard(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) private view returns(bool){
+        return openGames[gameID].players[index].shots_board.valid;
+    }
+
+    // DEPRECATED
+    function getPlayerOneShotsBoard(uint gameID) public view returns (bool){
+        return getPlayerShotsBoard(gameID, 0);
+    }
+
+    // DEPRECATED
+    function getPlayerTwoShotsBoard(uint gameID) public view returns (bool){
+        return getPlayerShotsBoard(gameID, 1);
+    }
+
+    // TODO: Write Tests for everything below this line
     // locations are 0-indexed
     function FireTorpedo(uint gameID, uint8 location_x, uint8 location_y) gameExists(gameID) isInGame(gameID) public {
         uint index;
@@ -353,5 +378,17 @@ contract Battleships {
         } else {
             emit ShotsFired(gameID, location_x, location_y);
         }
+    }
+
+    function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
+        address verifiedWinner;
+        // TODO: verify the merkle board for the winner first of all
+        // this requires asking the winner for their board
+        // if that fails, verify it for the loser and pay THEM out if it succeeds
+
+        // finally set the contract as payable
+        openGames[gameID].canPay = true;
+        openGames[gameID].winner = verifiedWinner;
+        emit Victory(gameID, msg.sender);
     }
 }
