@@ -14,15 +14,17 @@ The first player to hit all his opponent’s ship tiles and subsequently prove t
 
 The Contract has 3 main phases composed of a certain number of sub-phases each. Roughly, we can divide the state of the contract in terms of the state of an individual game within the contract.
 Each ‘game’ goes through:
-1. Instantiation 
-	This phase begins when the game is first created by a user and ends when both users send in their board.
-2. Game phase
-	This phase is comprised of 4 sub-phases which model the turns of the two players, in a cycle.
-	These phases are, in order: 
-	a. Player 1’s firing round, during which player 1 can declare a spot on his opponent's board to fire on.
-	b. Player 2's answer round, when player 2 is required to propose proof of whether a boat was hit or not.
-3. Payment phase
-	In this phase the winner's board is validated and they are paid out. The game is then deleted from storage.
+1. Instantiation: 
+    
+    This phase begins when the game is first created by a user and ends when both users send in their board.
+    
+3. Game phase: 
+
+    This phase is comprised of 4 sub-phases which model the turns of the two players, in a cycle. These phases are, in order: 
+    1. Player 1’s firing round, during which player 1 can declare a spot on his opponent's board to fire on.
+    2. Player 2's answer round, when player 2 is required to propose proof of whether a boat was hit or not.
+    
+4. Payment phase: In this phase the winner's board is validated and they are paid out. The game is then deleted from storage.
 
 ### Data Structures
 
