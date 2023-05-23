@@ -60,7 +60,6 @@ contract Battleships {
     Game private gameTrampoline;
     Player private playerTrampoline;
     Board private trampolineBoard;
-    bool[BOARD_SIZE][BOARD_SIZE] private trampolineShots;
     // used in generating UUIDs for the games
     // for now we are gonna use this as-is
     // start at 1 as 0 is used for a non-existing game
@@ -82,7 +81,7 @@ contract Battleships {
     event BoardAcknowledgeEvent(uint _gameID, address _player);
     event PlayerZeroTurn(uint _gameID);
     event ShotsFired(uint _gameID, uint8 _location);
-    event ShotsChecked(uint _gameID, uint8 _location, bool _isHit);
+    event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity);
     event Victory(uint _gameID, address _winner);
 
     error InvalidGameID();
@@ -101,7 +100,25 @@ contract Battleships {
     }
 
     modifier assertState(uint gameID, GameStates _state){
-        assert(openGames[gameID].state == _state);
+        if(_state != GameStates.P0_FIRING && _state != GameStates.P1_FIRING && _state != GameStates.P0_CHECKING && _state != GameStates.P1_CHECKING)
+            assert(openGames[gameID].state == _state);
+        else{
+            // We check firing states with P0_FIRING and checking states with P0_CHECKING, for both players
+            uint[2] memory indexes = getIndexSender(gameID);
+            if(_state == GameStates.P0_FIRING){
+                if(indexes[0] == 0)
+                    assert(openGames[gameID].state == _state);
+                else
+                    assert(openGames[gameID].state == GameStates.P1_FIRING);
+            }
+            else if(_state == GameStates.P0_CHECKING){
+                if(indexes[0] == 0)
+                    assert(openGames[gameID].state == _state);
+                else
+                    assert(openGames[gameID].state == GameStates.P1_CHECKING);
+            }
+            else assert(false);
+        }
         _;
     }
 
@@ -109,6 +126,25 @@ contract Battleships {
         assert(openGames[gameID].players[index].valid);
         assert(index < openGames[gameID].players.length);
         _;
+    }
+
+    modifier shotOnBoard(uint8 location){
+        assert(location < (BOARD_SIZE*BOARD_SIZE));
+        _;
+    }
+
+    function getIndexSender (uint gameID) view private returns(uint[2] memory) {
+        // indexes[0]: msg.sender index
+        // indexes[1]: msg.sender opponent's index
+        uint[2] memory indexes;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            indexes[0] = 0;
+            indexes[1] = 1;
+        } else {
+            indexes[0] = 1;
+            indexes[1] = 0;
+        }
+        return indexes;
     }
 
     // Code from OpenZeppelin's project
@@ -328,7 +364,6 @@ contract Battleships {
             return(false);
     }
     
-    // TODO: Maybe move the Board instantiation outside of this function
     function PlaceShips(uint gameID, bytes32 boardRoot) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.PLACING_SHIPS) public{
         uint index;
         uint oppIdx;
@@ -383,67 +418,49 @@ contract Battleships {
     }
 
     // TODO: Write Tests for everything below this line
-    // locations are 0-indexed
-    function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) public {
-        uint index;
-        uint oppIdx;
-        GameStates legalState;
-        if(msg.sender == openGames[gameID].players[0].playerAddress){
-            index = 0;
-            oppIdx = 1;
-            legalState = GameStates.P0_FIRING;
-        } else {
-            index = 1;
-            oppIdx = 0;
-            legalState = GameStates.P1_FIRING;
-        }
-        assert(openGames[gameID].state == legalState);
+    // for info on what location is see "Implementation of the user-side game board" in README.md
+    function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.P0_FIRING) public {
+        uint[2] memory indexes = getIndexSender(gameID);
         // Rotate into correct next state
-        legalState == GameStates.P0_FIRING ? legalState = GameStates.P1_CHECKING : legalState = GameStates.P0_CHECKING;
-        openGames[gameID].state = legalState;
+        openGames[gameID].state == GameStates.P0_FIRING ? openGames[gameID].state = GameStates.P1_CHECKING : openGames[gameID].state = GameStates.P0_CHECKING;
         // Now for some game logic
         // whatever happens, we lower the totalShots counter of our system by one
-        openGames[gameID].players[index].shots_board.totalShots--;
+        openGames[gameID].players[indexes[0]].shots_board.totalShots--;
         // Then we evaluate whether or not this is zero. If it is, This party wins automatically.
         // We do this here to avoid opponents stalling out on the reply for 5 blocks on what is a foregone conclusion
-        if (openGames[gameID].players[index].shots_board.totalShots == 0){
-            VerifyWinner(gameID, index, oppIdx);
+        if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
+            // VerifyWinner(gameID, index, oppIdx);
         } else {
             emit ShotsFired(gameID, location);
         }
     }
-
-    function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32[] calldata proof) gameExists(gameID) isInGame(gameID) public {
-        uint index;
-        uint oppIdx;
-        GameStates legalState;
-        if(msg.sender == openGames[gameID].players[0].playerAddress){
-            index = 0;
-            oppIdx = 1;
-            legalState = GameStates.P0_CHECKING;
-        } else {
-            index = 1;
-            oppIdx = 0;
-            legalState = GameStates.P1_CHECKING;
-        }
-        assert(openGames[gameID].state == legalState);
-        assert(location < (BOARD_SIZE*BOARD_SIZE));
-
-        // TODO REMOVE THIS MAGIC FREE PASS
-        // TODO IMPLEMENT ACTUAL PROOF CHECK
-        if(true){
+    
+    function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof) gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING) public {
+        uint[2] memory indexes = getIndexSender(gameID);
+        // This very time consuming copy is needed because apparently using gameID directly causes a stack-too-deep issue.
+        Game memory tmpGame = openGames[gameID];
+        // execute the proof test
+        if(verifyCalldata(proof, tmpGame.players[indexes[0]].boardTreeRoot, leaf)){
             // we could verify this user's proof
-            // update the firing user's shots board
-            //openGames[gameID].players[oppIdx].shots_board.shots[location_x][location_y] = isHit;
             // rotate state
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
-            emit ShotsChecked(gameID, location, isHit);
+            emit ShotsChecked(gameID, location, isHit, true);
         } else {
             // else we mark him as foul'd but do NOT rotate the state.
             // TODO IMPLEMENT FOUL MECHANICS
+            emit ShotsChecked(gameID, location, isHit, false);
         }
     }
+    
+    function EchoBytes(bytes32 proof) pure public returns (bytes32) {
+        return proof;
+    }
 
+    function EchoProof(bytes32[] calldata proof) pure public returns (bytes32[] calldata) {
+        return proof;
+    }
+
+    /*
     function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
         address verifiedWinner;
         // TODO: verify the merkle board for the winner first of all
@@ -455,4 +472,5 @@ contract Battleships {
         openGames[gameID].winner = verifiedWinner;
         emit Victory(gameID, msg.sender);
     }
+    */
 }
