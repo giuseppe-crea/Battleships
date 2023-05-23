@@ -31,10 +31,10 @@ Each ‘game’ goes through:
 #### Implementation of the user-side game board
 
 The board must be publicly auditable, but only provable by the author. For this purpose we choose, as suggested, a Merkle tree. The root of the tree will be stored in the contract, and proof will be submitted each time by the author.
-Given that the board is a SIZE_SIDE by SIZE_SIDE square of 0s (water) and 1s (ship), simply encoding this parameter into the leaf node of a Merkle tree would allow any third party to test each square for 1 or 0 and view anyone’s board. We need a client-side source of randomness.
-TODO: Choose client-side source of randomness. 31 bit.
-The random number is then concatenated with either 0 or 1, forming a 32 bit value. This value is then hashed by kekkak256. Each square on the board is treated this way.
-The sender must take care to store all these different random values, as they will be necessary to claim the prize. 
+Given that the board is a SIZE_SIDE by SIZE_SIDE square of 0s (water) and 1s (ship), simply encoding this parameter into the leaf node of a Merkle tree would allow any third party to test each square for 1 or 0 and view anyone’s board.
+Let's think of a different implementation.
+Rather than encoding every single square of the the grid into our trie, we simply encode the 20 values where our ships are placed. This assigns a value from 0 to 63 to each square on the board, taking the bottom left as origin square, incrementing by one for each square on the right and by eight for each square up.
+This creates  tries which can't be guessed at random and do not require additional sources of randomness.
 
 ### Contract
 

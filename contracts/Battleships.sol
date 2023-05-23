@@ -81,7 +81,8 @@ contract Battleships {
     event AcceptingBoards(uint _gameID);
     event BoardAcknowledgeEvent(uint _gameID, address _player);
     event PlayerZeroTurn(uint _gameID);
-    event ShotsFired(uint _gameID, uint8 _x, uint8 y);
+    event ShotsFired(uint _gameID, uint8 _x, uint8 _y);
+    event ShotsChecked(uint _gameID, uint8 _x, uint8 _y, bool _isHit);
     event Victory(uint _gameID, address _winner);
 
     error InvalidGameID();
@@ -377,6 +378,37 @@ contract Battleships {
             VerifyWinner(gameID, index, oppIdx);
         } else {
             emit ShotsFired(gameID, location_x, location_y);
+        }
+    }
+
+    function ConfirmShot(uint gameID, uint8 location_x, uint8 location_y, bool isHit, bytes32 proof) gameExists(gameID) isInGame(gameID) public {
+        uint index;
+        uint oppIdx;
+        GameStates legalState;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            index = 0;
+            oppIdx = 1;
+            legalState = GameStates.P0_CHECKING;
+        } else {
+            index = 1;
+            oppIdx = 0;
+            legalState = GameStates.P1_CHECKING;
+        }
+        assert(openGames[gameID].state == legalState);
+        assert(location_x < BOARD_SIZE);
+        assert(location_y < BOARD_SIZE);
+        // TODO REMOVE THIS MAGIC FREE PASS
+        // TODO IMPLEMENT ACTUAL PROOF CHECK
+        if(true){
+            // we could verify this user's proof
+            // update the firing user's shots board
+            openGames[gameID].players[oppIdx].shots_board.shots[location_x][location_y] = isHit;
+            // rotate state
+            openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
+            emit ShotsChecked(gameID, location_x, location_y, isHit);
+        } else {
+            // else we mark him as foul'd but do NOT rotate the state.
+            // TODO IMPLEMENT FOUL MECHANICS
         }
     }
 
