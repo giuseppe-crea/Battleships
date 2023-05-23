@@ -21,7 +21,7 @@ contract Battleships {
     struct Board{
         bool valid;
         // N*N matrix of bits to store hits
-        bool[BOARD_SIZE][BOARD_SIZE] shots;
+        // bool[BOARD_SIZE][BOARD_SIZE] shots;
         // # of enemy pieces still left on the board
         // goes down by one each time we receive one 'you hit' event
         uint totalPieces;
@@ -81,8 +81,8 @@ contract Battleships {
     event AcceptingBoards(uint _gameID);
     event BoardAcknowledgeEvent(uint _gameID, address _player);
     event PlayerZeroTurn(uint _gameID);
-    event ShotsFired(uint _gameID, uint8 _x, uint8 _y);
-    event ShotsChecked(uint _gameID, uint8 _x, uint8 _y, bool _isHit);
+    event ShotsFired(uint _gameID, uint8 _location);
+    event ShotsChecked(uint _gameID, uint8 _location, bool _isHit);
     event Victory(uint _gameID, address _winner);
 
     error InvalidGameID();
@@ -110,6 +110,48 @@ contract Battleships {
         assert(index < openGames[gameID].players.length);
         _;
     }
+
+    // Code from OpenZeppelin's project
+    // https://github.com/OpenZeppelin
+    function verifyCalldata(
+    bytes32[] calldata proof,
+    bytes32 root,
+    bytes32 leaf
+    ) internal pure returns (bool) {
+        return processProofCalldata(proof, leaf) == root;
+    }
+
+    function processProofCalldata(
+        bytes32[] calldata proof,
+        bytes32 leaf
+    ) internal pure returns (bytes32) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            computedHash = _hashPair(computedHash, proof[i]);
+        }
+        return computedHash;
+    }
+
+    function _hashPair(bytes32 a, bytes32 b)
+        private
+        pure
+        returns(bytes32)
+    {
+        return a < b ? _efficientHash(a, b) : _efficientHash(b, a);
+    }
+
+    function _efficientHash(bytes32 a, bytes32 b)
+        private
+        pure
+        returns (bytes32 value)
+    {
+        assembly {
+            mstore(0x00, a)
+            mstore(0x20, b)
+            value := keccak256(0x00, 0x40)
+        }
+    }
+    // end of OpenZeppelin code
 
     // create a Game value, add it to openGames, populate the Player[0]
     function newGame(bool isPrivate) public {
@@ -294,19 +336,9 @@ contract Battleships {
         msg.sender == openGames[gameID].players[0].playerAddress ? oppIdx = 1 : oppIdx = 0;
         require(openGames[gameID].players[index].boardTreeRoot == 0x0);
         // Instantiate a new shots board
-        // this would be incredibly inefficient on anything larger than our current values
-        // since we are playing HUMAN games, we use human values of BOARD_SIZE
-        // otherwise a sparse implementation is preferred
-        for(uint8 i = 0; i < BOARD_SIZE; i++){
-            for(uint8 j = 0; j < BOARD_SIZE; j++){
-                trampolineShots[i][j] = false;
-            }
-        }
         // Instantiate the Board struct itself and assign it to a player
-        bool[BOARD_SIZE][BOARD_SIZE] storage playerShots = trampolineShots;
         Board storage playerBoard = trampolineBoard;
         trampolineBoard.valid = true;
-        trampolineBoard.shots = playerShots;
         trampolineBoard.totalPieces = NUMBER_OF_SHIP_SQUARES;
         trampolineBoard.totalShots = BOARD_SIZE;
         openGames[gameID].players[index].shots_board = playerBoard;
@@ -352,7 +384,7 @@ contract Battleships {
 
     // TODO: Write Tests for everything below this line
     // locations are 0-indexed
-    function FireTorpedo(uint gameID, uint8 location_x, uint8 location_y) gameExists(gameID) isInGame(gameID) public {
+    function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) public {
         uint index;
         uint oppIdx;
         GameStates legalState;
@@ -377,11 +409,11 @@ contract Battleships {
         if (openGames[gameID].players[index].shots_board.totalShots == 0){
             VerifyWinner(gameID, index, oppIdx);
         } else {
-            emit ShotsFired(gameID, location_x, location_y);
+            emit ShotsFired(gameID, location);
         }
     }
 
-    function ConfirmShot(uint gameID, uint8 location_x, uint8 location_y, bool isHit, bytes32 proof) gameExists(gameID) isInGame(gameID) public {
+    function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32[] calldata proof) gameExists(gameID) isInGame(gameID) public {
         uint index;
         uint oppIdx;
         GameStates legalState;
@@ -395,17 +427,17 @@ contract Battleships {
             legalState = GameStates.P1_CHECKING;
         }
         assert(openGames[gameID].state == legalState);
-        assert(location_x < BOARD_SIZE);
-        assert(location_y < BOARD_SIZE);
+        assert(location < (BOARD_SIZE*BOARD_SIZE));
+
         // TODO REMOVE THIS MAGIC FREE PASS
         // TODO IMPLEMENT ACTUAL PROOF CHECK
         if(true){
             // we could verify this user's proof
             // update the firing user's shots board
-            openGames[gameID].players[oppIdx].shots_board.shots[location_x][location_y] = isHit;
+            //openGames[gameID].players[oppIdx].shots_board.shots[location_x][location_y] = isHit;
             // rotate state
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
-            emit ShotsChecked(gameID, location_x, location_y, isHit);
+            emit ShotsChecked(gameID, location, isHit);
         } else {
             // else we mark him as foul'd but do NOT rotate the state.
             // TODO IMPLEMENT FOUL MECHANICS
