@@ -417,7 +417,6 @@ contract Battleships {
         return getPlayerShotsBoard(gameID, 1);
     }
 
-    // TODO: Write Tests for everything below this line
     // for info on what location is see "Implementation of the user-side game board" in README.md
     function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.P0_FIRING) public {
         uint[2] memory indexes = getIndexSender(gameID);
@@ -452,6 +451,14 @@ contract Battleships {
         }
     }
     
+    // Assortment of debug functions
+    /*
+    function QuickCheck(bytes32 leaf, bytes32 root, bytes32[] calldata proof) public returns (bool){
+        bool forTheDebugger = verifyCalldata(proof, root, leaf);
+        emit ShotsChecked(0, 0, false, forTheDebugger);
+        return forTheDebugger;
+    }
+   
     function EchoBytes(bytes32 proof) pure public returns (bytes32) {
         return proof;
     }
@@ -459,6 +466,7 @@ contract Battleships {
     function EchoProof(bytes32[] calldata proof) pure public returns (bytes32[] calldata) {
         return proof;
     }
+    */
 
     /*
     function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
