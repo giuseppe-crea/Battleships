@@ -454,8 +454,8 @@ contract Battleships {
     }
 
     // this function is key to verifying the truthfulness of a client 
-    function GenLeafNode(uint32 tile, bool ship) pure public returns (bytes32) {
-        return keccak256(abi.encode(tile,ship));
+    function GenLeafNode(uint32 tile, bool ship, uint32 secret) pure public returns (bytes32) {
+        return keccak256(abi.encode(tile,ship, secret));
     }
     // Assortment of debug functions
     

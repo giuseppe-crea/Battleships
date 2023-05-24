@@ -22,7 +22,7 @@ function generatePlayerBoard(){
     var shipsAt = generateRandomNumbers(20).sort(function(a, b) {
         return a - b;
     });
-
+    const randomUint32 = () => Math.floor(Math.random() * 4294967296);
     // create a board element
     let board = [];
     var j = 0;
@@ -33,9 +33,11 @@ function generatePlayerBoard(){
         }else{
             shipPresence = false;
         }
+        // This implementation uses a random value for each node to ensure nobody can "guess" the whole board
         var board_elem = {
             tile: i,
-            ship: shipPresence
+            ship: shipPresence,
+            secret: randomUint32()
         }
         board.push(board_elem);
         console.log(board_elem);
@@ -44,7 +46,7 @@ function generatePlayerBoard(){
     // encode the leaves
 
     const leafNodes = board.map((_board) => 
-        web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint32','bool'],[_board.tile,_board.ship]))
+        web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint32','bool','uint32'],[_board.tile,_board.ship,_board.secret]))
     );
     console.log(leafNodes);
     /*
@@ -115,7 +117,8 @@ contract("Battleships", function (accounts) {
             var randomNumberFirstShot = Math.floor(Math.random() * 64);
             const targetNode = p1_leaf_nodes[randomNumberFirstShot];
             const ship = p1_plain_board[randomNumberFirstShot].ship;
-            const reply = await battleships.GenLeafNode(randomNumberFirstShot, ship);
+            const secret = p1_plain_board[randomNumberFirstShot].secret;
+            const reply = await battleships.GenLeafNode(randomNumberFirstShot, ship, secret);
             //console.log("Server Value: " + reply);
             const reply_two = await battleships.EchoBytes(targetNode);
             //console.log("Client Value: " + reply_two);
