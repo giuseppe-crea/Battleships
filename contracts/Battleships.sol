@@ -13,6 +13,7 @@ contract Battleships {
         P1_CHECKING,
         P1_FIRING,
         P0_CHECKING,
+        CHECKING_WINNER,
         DONE,
         NONE
     }
@@ -66,10 +67,12 @@ contract Battleships {
     // TODO: deal with it overflowing
     uint private gameCounter;
     uint private lastOpenGame;
+    address private owner;
 
     constructor() {
         gameCounter = 1;
         lastOpenGame = 1;
+        owner = msg.sender;
     }
 
     event ShareID(address _from, address _to, uint _gameID);
@@ -82,12 +85,19 @@ contract Battleships {
     event PlayerZeroTurn(uint _gameID);
     event ShotsFired(uint _gameID, uint8 _location);
     event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity);
+    event RequestBoard(uint _gameID, address _winner);
     event Victory(uint _gameID, address _winner);
 
     error InvalidGameID();
     error NotInGame();
     error StakeAlreadyDeposited();
     error WrongStakeAmount(uint expectedStakeValue);
+
+    // Used for debug only
+    modifier ownerOnly(){
+        assert(msg.sender == owner);
+        _;
+    }
 
     modifier gameExists(uint gameID){
         assert(openGames[gameID].valid);
@@ -130,6 +140,11 @@ contract Battleships {
 
     modifier shotOnBoard(uint8 location){
         assert(location < (BOARD_SIZE*BOARD_SIZE));
+        _;
+    }
+
+    modifier isWinner(uint gameID){
+        assert(openGames[gameID].winner == msg.sender);
         _;
     }
 
@@ -428,7 +443,8 @@ contract Battleships {
         // Then we evaluate whether or not this is zero. If it is, This party wins automatically.
         // We do this here to avoid opponents stalling out on the reply for 5 blocks on what is a foregone conclusion
         if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
-            // VerifyWinner(gameID, index, oppIdx);
+            openGames[gameID].winner = msg.sender;
+            RequestWinnerBoard(gameID, msg.sender);
         } else {
             emit ShotsFired(gameID, location);
         }
@@ -459,6 +475,50 @@ contract Battleships {
         return keccak256(abi.encode(tile,ship));
     }
 
+    // a player who sees their address here will need to call VerifyWinner
+    function RequestWinnerBoard(uint gameID, address winnerAddress) private {
+        emit RequestBoard(gameID, winnerAddress);
+        // TODO: start foul counter
+    }
+
+    // sadly using our modifiers here runs into a stack too deep compilation issue
+    // ergo we must assert a few security values by hand
+    function VerifyWinner(
+    uint gameID,  
+    uint8[] calldata tiles,
+    bool[] calldata ships,
+    bytes32[] calldata nodes,
+    bytes32[][] calldata proofs,
+    bytes32 root
+    ) public {
+        uint winnerIndex;
+        assert(openGames[gameID].valid);
+        if(openGames[gameID].winner == openGames[gameID].players[0].playerAddress){
+            winnerIndex = 0;
+        } else {
+            winnerIndex = 1;
+        }
+        assert(openGames[gameID].winner == msg.sender);
+        assert(root == openGames[gameID].players[winnerIndex].boardTreeRoot);
+        assert(tiles.length == (BOARD_SIZE*BOARD_SIZE));
+        assert(ships.length == (BOARD_SIZE*BOARD_SIZE));
+        // First operation: make sure this board really has the required number of ships on it
+        // and make sure the winner didn't send us a different board
+        // in the same cycle, verify that the node is part of the tree
+        // we already made sure this root is the correct one
+        uint8 shipsTotal = 0;
+        for(uint8 i = 0; i < (BOARD_SIZE*BOARD_SIZE); i++){
+            if(ships[i])
+                shipsTotal++;
+            assert(nodes[i] == GenLeafNode(tiles[i], ships[i]));
+            assert(verifyCalldata(proofs[i], root, nodes[i]));
+        }
+        assert(shipsTotal == NUMBER_OF_SHIP_SQUARES);
+        // we don't use a conditional branch to alert the other player, as a Foul has already been triggered.
+        openGames[gameID].canPay = true;
+        emit Victory(gameID, msg.sender);
+    }
+
     // Assortment of debug functions
     
      function PreviewLeafNode(uint8 tile, bool ship) pure public returns (bytes memory) {
@@ -470,7 +530,6 @@ contract Battleships {
         emit ShotsChecked(0, 0, false, forTheDebugger);
         return forTheDebugger;
     }
-    
 
     function EchoBytes(bytes32 proof) pure public returns (bytes32) {
         return proof;
@@ -480,17 +539,11 @@ contract Battleships {
         return proof;
     }
 
-    /*
-    function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
-        address verifiedWinner;
-        // TODO: verify the merkle board for the winner first of all
-        // this requires asking the winner for their board
-        // if that fails, verify it for the loser and pay THEM out if it succeeds
-
-        // finally set the contract as payable
-        openGames[gameID].canPay = true;
-        openGames[gameID].winner = verifiedWinner;
-        emit Victory(gameID, msg.sender);
+    function ChangeState(uint gameID, GameStates state) ownerOnly() public {
+        openGames[gameID].state = state;
     }
-    */
+
+    function SetWinner(uint gameID, address winner) ownerOnly() public {
+        openGames[gameID].winner = winner;
+    }
 }
