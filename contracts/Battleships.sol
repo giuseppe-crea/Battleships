@@ -418,7 +418,7 @@ contract Battleships {
     }
 
     // for info on what location is see "Implementation of the user-side game board" in README.md
-    function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.P0_FIRING) public {
+    function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_FIRING) public {
         uint[2] memory indexes = getIndexSender(gameID);
         // Rotate into correct next state
         openGames[gameID].state == GameStates.P0_FIRING ? openGames[gameID].state = GameStates.P1_CHECKING : openGames[gameID].state = GameStates.P0_CHECKING;
@@ -433,8 +433,6 @@ contract Battleships {
             emit ShotsFired(gameID, location);
         }
     }
-
-
     
     function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof) gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING) public {
         uint[2] memory indexes = getIndexSender(gameID);

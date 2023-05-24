@@ -128,6 +128,32 @@ contract("Battleships", function (accounts) {
             assert.equal(status, 4, "State machine failed 2.");
         })
     });
+
+    describe("Negative tests", async () =>{
+        it("Lying on the value of the shot", async () =>{
+            // shoot at a random number as p0
+            var randomTile = Math.floor(Math.random() * 64);
+            await battleships.FireTorpedo(1, randomTile);
+            // lie on the value of that tile as p1 by negating the real ship value
+            const shipPresence = !(p1_plain_board[randomTile].ship);
+            const targetNode = p1_leaf_nodes[randomTile];
+            const nodeProof = p1_board_collection[2].getHexProof(targetNode);
+            console.log("Checking shot on board piece " + randomTile + " of player 2 with expected result of " + !shipPresence + " but the communicated result of "+shipPresence);
+            var errored = false;
+            try{
+                const reply = await battleships.ConfirmShot(1, randomTile, shipPresence, targetNode, nodeProof, {from: accounts[1]})
+            } catch(error){
+                errored = true;
+            }
+            assert(errored, "Somehow, the transaction went through!");
+            const status = await battleships.checkGameState(1);
+            // We are still in the 'check reply from p1' state.
+            assert.equal(status, 5, "State machine failed.");
+        })
+        // tests on the modifiers are pointless here, we won't waste time with those anymore.
+        // the ConfirmShot and FireTorpedo functions both implement the necessary safety modifiers
+        // firing out of turn, firing out of bounds, firing from a user not in game, firing for a game which doesn't exist are all accounted for
+    });
 });
 
 
