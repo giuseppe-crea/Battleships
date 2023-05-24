@@ -18,12 +18,13 @@ function generateRandomNumbers(count) {
     
     return Array.from(numbers);
   }
-function generatePlayerBoard(){
+  function generatePlayerBoard(){
     // place 20 random ship pieces
     var shipsAt = generateRandomNumbers(20).sort(function(a, b) {
         return a - b;
     });
-
+    // If we ever wanted to add a random value to each node, this would be the way
+    //const randomUint32 = () => Math.floor(Math.random() * 4294967296);
     // create a board element
     let board = [];
     var j = 0;
@@ -34,24 +35,18 @@ function generatePlayerBoard(){
         }else{
             shipPresence = false;
         }
+        // This implementation uses a random value for each node to ensure nobody can "guess" the whole board
         var board_elem = {
-            tile: i.toString(),
-            ship: web3.eth.abi.encodeParameter(
-                "bool",
-                shipPresence
-            )
+            tile: i,
+            ship: shipPresence
         }
         board.push(board_elem);
     }
-    
+
     // encode the leaves
-    const leafNodes = board.map((_board) =>
-        keccak256(
-            Buffer.concat([
-                Buffer.from(_board.tile),
-                Buffer.from(_board.ship.replace("0x", ""), "hex")
-            ])
-        )
+
+    const leafNodes = board.map((_board) => 
+        web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
     );
 
     const merkleTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
@@ -73,6 +68,7 @@ const p1_plain_board = p1_board_collection[0];
 const p1_leaf_nodes =  p1_board_collection[1];
 const p1_board = p1_board_collection[2].getHexRoot();
 var randomNumberFirstShot = Math.floor(Math.random() * 64);
+var randomNumberSecondShot = Math.floor(Math.random() * 64);
 
 contract("Battleships", function (accounts) {
     let battleships;
@@ -103,7 +99,7 @@ contract("Battleships", function (accounts) {
             assert.equal(status, 5, "State machine failed 1.");
         })
         it("Checking the shot from player 2.", async () =>{
-            const shipPresence = web3.eth.abi.decodeParameter("bool",p1_plain_board[randomNumberFirstShot].ship);
+            const shipPresence = p1_plain_board[randomNumberFirstShot].ship;
             const targetNode = p1_leaf_nodes[randomNumberFirstShot];
             const nodeProof = p1_board_collection[2].getHexProof(targetNode);
             console.log("Checking shot on board piece " + randomNumberFirstShot + " of player 2 with expected result of " + shipPresence);
@@ -112,19 +108,25 @@ contract("Battleships", function (accounts) {
             assert(reply.logs[0].args[3], "The shot failed to validate!")
             const status = await battleships.checkGameState(1);
             assert.equal(status, 6, "State machine failed 2.");
-        })/*
-        it("Firing back from player 2.", async () =>{
-            const reply = await battleships.FireTorpedo(1, 12, {from: accounts[1]})
+        })
+        it("Firing a shot from player 2.", async () =>{
+            // shoot at a random number
+            const reply = await battleships.FireTorpedo(1, randomNumberSecondShot, {from:accounts[1]});
             assert.equal(reply.logs[0].event, 'ShotsFired', "Event of type ShotsFired did not fire.");
             const status = await battleships.checkGameState(1);
-            assert.equal(status, 7, "State machine failed 3.");
+            assert.equal(status, 7, "State machine failed 1.");
         })
         it("Checking the shot from player 1.", async () =>{
-            const reply = await battleships.ConfirmShot(1, 12, false, leafNodes[0], merkleTree.getHexProof(leafNodes[0]))
+            const shipPresence = p0_plain_board[randomNumberSecondShot].ship;
+            const targetNode = p0_leaf_nodes[randomNumberSecondShot];
+            const nodeProof = p0_board_collection[2].getHexProof(targetNode);
+            console.log("Checking shot on board piece " + randomNumberSecondShot + " of player 1 with expected result of " + shipPresence);
+            const reply = await battleships.ConfirmShot(1, randomNumberSecondShot, shipPresence, targetNode, nodeProof)
             assert.equal(reply.logs[0].event, 'ShotsChecked', "Event of type ShotsChecked did not fire.");
+            assert(reply.logs[0].args[3], "The shot failed to validate!")
             const status = await battleships.checkGameState(1);
-            assert.equal(status, 4, "State machine failed 4.");
-        })*/
+            assert.equal(status, 4, "State machine failed 2.");
+        })
     });
 });
 

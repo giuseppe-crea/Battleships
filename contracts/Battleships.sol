@@ -440,6 +440,8 @@ contract Battleships {
         uint[2] memory indexes = getIndexSender(gameID);
         // This very time consuming copy is needed because apparently using gameID directly causes a stack-too-deep issue.
         Game memory tmpGame = openGames[gameID];
+        // make sure this node corresponds to the board tile and truth value we are checking
+        assert(leaf == GenLeafNode(location, isHit));
         // execute the proof test
         if(verifyCalldata(proof, tmpGame.players[indexes[0]].boardTreeRoot, leaf)){
             // we could verify this user's proof
@@ -453,13 +455,15 @@ contract Battleships {
         }
     }
 
-    // this function is key to verifying the truthfulness of a client 
-    function GenLeafNode(uint32 tile, bool ship, uint32 secret) pure public returns (bytes32) {
-        return keccak256(abi.encode(tile,ship, secret));
+    // this function generates a node locally in the same way a client would generate it
+    // it could be internal, we keep it public for now for debug purposes
+    function GenLeafNode(uint8 tile, bool ship) pure public returns (bytes32) {
+        return keccak256(abi.encode(tile,ship));
     }
+
     // Assortment of debug functions
     
-     function PreviewLeafNode(uint32 tile, bool ship) pure public returns (bytes memory) {
+     function PreviewLeafNode(uint8 tile, bool ship) pure public returns (bytes memory) {
         return abi.encode(tile, ship);
     }
 
