@@ -34,16 +34,20 @@ function generatePlayerBoard(){
             shipPresence = false;
         }
         var board_elem = {
-            tile: i.toString(),
-            ship: web3.eth.abi.encodeParameter(
-                "bool",
-                shipPresence
-            )
+            tile: i,
+            ship: shipPresence
         }
         board.push(board_elem);
+        console.log(board_elem);
     }
-    
+
     // encode the leaves
+
+    const leafNodes = board.map((_board) => 
+        web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint32','bool'],[_board.tile,_board.ship]))
+    );
+    console.log(leafNodes);
+    /*
     const leafNodes = board.map((_board) =>
         keccak256(
             Buffer.concat([
@@ -52,21 +56,20 @@ function generatePlayerBoard(){
             ])
         )
     );
-    
+    */
     // generate the merkle tree
     const merkleTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
     // print
-    
+    /*
     console.log("---------");
     console.log("Merke Tree");
     console.log("---------");
     console.log(merkleTree.toString());
     console.log("---------");
     console.log("Merkle Root: " + merkleTree.getHexRoot());
-    
+    */
     return [board, leafNodes, merkleTree];
 }
-
 // ######################################################################
 const Battleships = artifacts.require("Battleships");
 
@@ -99,14 +102,26 @@ contract("Battleships", function (accounts) {
             console.log(reply);
         })
     })
-    describe("Learning to walk. Again.", async () => {
-        it("Quck Check:", async () =>{
+    describe("Learning to walk. Again.", async () => {    
+        it("Let's see what the contract makes out of a node", async () =>{
             var randomNumberFirstShot = Math.floor(Math.random() * 64);
             const targetNode = p1_leaf_nodes[randomNumberFirstShot];
             const nodeProof = p1_board_collection[2].getHexProof(targetNode);
             console.log("Proof:\n"+nodeProof);
             const reply = await battleships.QuickCheck(targetNode, p1_board, nodeProof);
             console.log(reply.logs[0].args[3]);
+        })
+        it("Test if the contract can generate a leaf like the client can", async () =>{
+            var randomNumberFirstShot = Math.floor(Math.random() * 64);
+            const targetNode = p1_leaf_nodes[randomNumberFirstShot];
+            const ship = p1_plain_board[randomNumberFirstShot].ship;
+            const reply = await battleships.GenLeafNode(randomNumberFirstShot, ship);
+            //console.log("Server Value: " + reply);
+            const reply_two = await battleships.EchoBytes(targetNode);
+            //console.log("Client Value: " + reply_two);
+            assert.equal(reply, reply_two, "Client and Server cannot generate identical nodes.")
+            //const reply_three = await battleships.PreviewLeafNode('1', ship);
+            //console.log("Server works on the following bytes array: " + reply_three);
         })
     })
 });

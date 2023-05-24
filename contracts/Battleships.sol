@@ -433,6 +433,8 @@ contract Battleships {
             emit ShotsFired(gameID, location);
         }
     }
+
+
     
     function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof) gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING) public {
         uint[2] memory indexes = getIndexSender(gameID);
@@ -450,15 +452,24 @@ contract Battleships {
             emit ShotsChecked(gameID, location, isHit, false);
         }
     }
-    
+
+    // this function is key to verifying the truthfulness of a client 
+    function GenLeafNode(uint32 tile, bool ship) pure public returns (bytes32) {
+        return keccak256(abi.encode(tile,ship));
+    }
     // Assortment of debug functions
-    /*
+    
+     function PreviewLeafNode(uint32 tile, bool ship) pure public returns (bytes memory) {
+        return abi.encode(tile, ship);
+    }
+
     function QuickCheck(bytes32 leaf, bytes32 root, bytes32[] calldata proof) public returns (bool){
         bool forTheDebugger = verifyCalldata(proof, root, leaf);
         emit ShotsChecked(0, 0, false, forTheDebugger);
         return forTheDebugger;
     }
-   
+    
+
     function EchoBytes(bytes32 proof) pure public returns (bytes32) {
         return proof;
     }
@@ -466,7 +477,6 @@ contract Battleships {
     function EchoProof(bytes32[] calldata proof) pure public returns (bytes32[] calldata) {
         return proof;
     }
-    */
 
     /*
     function VerifyWinner(uint gameID, uint winnerIndex, uint loserIndex) private {
