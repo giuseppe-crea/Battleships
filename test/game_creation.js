@@ -9,7 +9,7 @@ contract("Battleships", function (accounts) {
     describe("Creating a new game", async () => {
       it("No games exist in the contract.", async () => {
         const currGames = await battleships.checkGameState(1);
-        assert.equal(currGames, 10, "Somehow game #1 exists!");
+        assert.equal(currGames, Battleships.GameStates.NONE, "Somehow game #1 exists!");
         //console.log(currGames);
       });
       it("One game now exists in the contract.", async () => {
@@ -81,7 +81,7 @@ contract("Battleships", function (accounts) {
       });
       it("Game #2 should be in 'setting stake' state.", async () => {
         const currGames = await battleships.checkGameState(2);
-        assert.equal(currGames, 1, "Wrong state for game #2.")
+        assert.equal(currGames, Battleships.GameStates.SETTING_STAKE, "Wrong state for game #2.")
       });
       it("Joining second open game (#4) with accounts[4].", async () => {
         const currGames = await battleships.joinGame(0, {from: accounts[4]});
@@ -97,7 +97,7 @@ contract("Battleships", function (accounts) {
       });
       it("Game #4 should be in 'setting stake' state.", async () => {
         const currGames = await battleships.checkGameState(4);
-        assert.equal(currGames, 1, "Wrong state for game #4.")
+        assert.equal(currGames, Battleships.GameStates.SETTING_STAKE, "Wrong state for game #4.")
       });
       // finally, try joining the private game
       it("Joining private game with ID #3 on accounts[4].", async () => {
@@ -114,7 +114,7 @@ contract("Battleships", function (accounts) {
       });
       it("Game #3 should be in 'setting stake' state.", async () => {
         const currGames = await battleships.checkGameState(3);
-        assert.equal(currGames, 1, "Wrong state for game #3.")
+        assert.equal(currGames, Battleships.GameStates.SETTING_STAKE, "Wrong state for game #3.")
       });
     });
 });

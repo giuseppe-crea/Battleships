@@ -27,7 +27,7 @@ contract("Battleships", function (accounts) {
         it("Checking consistency of staked values after that action.", async () => {
             // making sure the game is still accepting stakes
             const req_one = await battleships.checkGameState(1);
-            assert.equal(req_one, 1, "Game is not accepting stakes anymore!")
+            assert.equal(req_one, Battleships.GameStates.SETTING_STAKE, "Game is not accepting stakes anymore!")
             // confirming player 1 stake
             const req_two = await battleships.checkStakePlayerOne(1);
             assert.equal(req_two, 100, "Player One's stake is not correct.")
@@ -49,7 +49,7 @@ contract("Battleships", function (accounts) {
         it("Checking consistency of staked values after that action.", async () => {
             // making sure the game is still accepting stakes
             const req_five = await battleships.checkGameState(1);
-            assert.equal(req_five, 1, "Game is not accepting stakes anymore!")
+            assert.equal(req_five, Battleships.GameStates.SETTING_STAKE, "Game is not accepting stakes anymore!")
             // confirming player 1 stake
             const req_six = await battleships.checkStakePlayerOne(1);
             assert.equal(req_six, 100, "Player One's stake is not correct.")
@@ -70,7 +70,7 @@ contract("Battleships", function (accounts) {
         it("Checking consistency of staked values after that action.", async () => {
             // making sure the game is still accepting stakes
             const req_one = await battleships.checkGameState(1);
-            assert.equal(req_one, 2, "Game is not ready to be paid!")
+            assert.equal(req_one, Battleships.GameStates.ACCEPTING_PAYMENT, "Game is not ready to be paid!")
             // confirming player 1 stake
             const req_two = await battleships.checkStakePlayerOne(1);
             assert.equal(req_two, 110, "Player One's stake is not correct.")

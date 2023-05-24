@@ -81,13 +81,13 @@ contract("Battleships", function (accounts) {
         await battleships.PlaceShips(1, p0_board);
         await battleships.PlaceShips(1, p1_board, {from: accounts[1]});
         // a bit of cheating
-        await battleships.ChangeState(1, 8);
+        await battleships.ChangeState(1, Battleships.GameStates.CHECKING_WINNER);
         await battleships.SetWinner(1, accounts[0]);
     });
     describe("Positive tests", async () =>{
         it("Assert correct setup:", async () =>{
             const reply = await battleships.checkGameState(1);
-            assert.equal(reply, 8, "Failed Setup");
+            assert.equal(reply, Battleships.GameStates.CHECKING_WINNER, "Failed Setup");
         })
         it("Call VerifyWinner.", async () =>{
             let tiles = [];

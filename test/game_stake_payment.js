@@ -9,7 +9,7 @@ contract("Battleships", function (accounts) {
         await battleships.proposeStake(1, 5000);
         await battleships.proposeStake(1, 5000, {from: accounts[1]});
         const reply = await battleships.checkGameState(1);
-        assert.equal(reply, 2, "Failed Setup");
+        assert.equal(reply, Battleships.GameStates.ACCEPTING_PAYMENT, "Failed Setup");
     });
 
     describe("Paying a game's stake as player one:", async () => {
@@ -78,7 +78,7 @@ contract("Battleships", function (accounts) {
         });
         it("Making sure the game is in the correct state.", async () => {
             const reply = await battleships.checkGameState(1);
-            assert.equal(reply, 3, "Game is not in PLACING_SHIPS state!")
+            assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Game is not in PLACING_SHIPS state!")
         })
     });
 });

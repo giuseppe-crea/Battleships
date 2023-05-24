@@ -11,7 +11,7 @@ contract("Battleships", function (accounts) {
         await battleships.payStake(1, {value: 5000});
         await battleships.payStake(1, {from: accounts[1], value: 5000});
         const reply = await battleships.checkGameState(1);
-        assert.equal(reply, 3, "Failed Setup");
+        assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Failed Setup");
     });
     describe("Correct Placement tests.", async () =>{
         it("Player #0 posts their board.", async () =>{
@@ -35,7 +35,7 @@ contract("Battleships", function (accounts) {
             assert.equal(five, true, "Player #0 didn't instantiate a shots board.");
             // check that game is still in state 3 
             const six = await battleships.checkGameState(1);
-            assert.equal(six, 3, "State machine failure.");
+            assert.equal(six, Battleships.GameStates.PLACING_SHIPS, "State machine failure.");
         });
         it("Player #1 posts theirs.", async () =>{
             const one = await battleships.getPlayerTwoBoardRoot(1);
@@ -53,13 +53,13 @@ contract("Battleships", function (accounts) {
             const five = await battleships.getPlayerTwoShotsBoard(1);
             assert.equal(five, true, "Player #0 didn't instantiate a shots board."); 
             const six = await battleships.checkGameState(1);
-            assert.equal(six, 4, "State machine failure.");
+            assert.equal(six, Battleships.GameStates.P0_FIRING, "State machine failure.");
         });
     });
     describe("Negative Placement tests.", async () =>{
         it("Make sure we are in state 4.", async () =>{
             const six = await battleships.checkGameState(1);
-            assert.equal(six, 4, "State machine failure.");
+            assert.equal(six, Battleships.GameStates.P0_FIRING, "State machine failure.");
         });
         it("Try pushing a new board as p0.", async () =>{
             var errored = false;
@@ -89,7 +89,7 @@ contract("Battleships", function (accounts) {
             await battleships.payStake(2, {value: 5000});
             await battleships.payStake(2, {from: accounts[1], value: 5000});
             const reply = await battleships.checkGameState(2);
-            assert.equal(reply, 3, "Failed Setup");
+            assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Failed Setup");
         });
         it("Pushing two boards from the first player. The second push will fail.", async () => {
             var errored = false;
@@ -111,7 +111,7 @@ contract("Battleships", function (accounts) {
             await battleships.payStake(3, {value: 5000});
             await battleships.payStake(3, {from: accounts[1], value: 5000});
             const reply = await battleships.checkGameState(3);
-            assert.equal(reply, 3, "Failed Setup");
+            assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Failed Setup");
         });
         it("Pushing two boards from the second player. The second push will fail.", async () => {
             var errored = false;

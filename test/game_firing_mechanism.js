@@ -82,21 +82,20 @@ contract("Battleships", function (accounts) {
         await battleships.payStake(1, {from: accounts[1], value: 5000});
         await battleships.PlaceShips(1, p0_board);
         await battleships.PlaceShips(1, p1_board, {from: accounts[1]});
-        
     });
    
     describe("Positive tests", async () =>{
         
         it("Assert correct setup:", async () =>{
             const reply = await battleships.checkGameState(1);
-            assert.equal(reply, 4, "Failed Setup");
+            assert.equal(reply, Battleships.GameStates.P0_FIRING, "Failed Setup");
         })
         it("Firing a shot from player 1.", async () =>{
             // shoot at a random number
             const reply = await battleships.FireTorpedo(1, randomNumberFirstShot);
             assert.equal(reply.logs[0].event, 'ShotsFired', "Event of type ShotsFired did not fire.");
             const status = await battleships.checkGameState(1);
-            assert.equal(status, 5, "State machine failed 1.");
+            assert.equal(status, Battleships.GameStates.P1_CHECKING, "State machine failed 1.");
         })
         it("Checking the shot from player 2.", async () =>{
             const shipPresence = p1_plain_board[randomNumberFirstShot].ship;
@@ -107,14 +106,14 @@ contract("Battleships", function (accounts) {
             assert.equal(reply.logs[0].event, 'ShotsChecked', "Event of type ShotsChecked did not fire.");
             assert(reply.logs[0].args[3], "The shot failed to validate!")
             const status = await battleships.checkGameState(1);
-            assert.equal(status, 6, "State machine failed 2.");
+            assert.equal(status, Battleships.GameStates.P1_FIRING, "State machine failed 2.");
         })
         it("Firing a shot from player 2.", async () =>{
             // shoot at a random number
             const reply = await battleships.FireTorpedo(1, randomNumberSecondShot, {from:accounts[1]});
             assert.equal(reply.logs[0].event, 'ShotsFired', "Event of type ShotsFired did not fire.");
             const status = await battleships.checkGameState(1);
-            assert.equal(status, 7, "State machine failed 1.");
+            assert.equal(status, Battleships.GameStates.P0_CHECKING, "State machine failed 1.");
         })
         it("Checking the shot from player 1.", async () =>{
             const shipPresence = p0_plain_board[randomNumberSecondShot].ship;
@@ -125,7 +124,7 @@ contract("Battleships", function (accounts) {
             assert.equal(reply.logs[0].event, 'ShotsChecked', "Event of type ShotsChecked did not fire.");
             assert(reply.logs[0].args[3], "The shot failed to validate!")
             const status = await battleships.checkGameState(1);
-            assert.equal(status, 4, "State machine failed 2.");
+            assert.equal(status, Battleships.GameStates.P0_FIRING, "State machine failed 2.");
         })
     });
 
@@ -148,7 +147,7 @@ contract("Battleships", function (accounts) {
             assert(errored, "Somehow, the transaction went through!");
             const status = await battleships.checkGameState(1);
             // We are still in the 'check reply from p1' state.
-            assert.equal(status, 5, "State machine failed.");
+            assert.equal(status, Battleships.GameStates.P1_CHECKING, "State machine failed.");
         })
         // tests on the modifiers are pointless here, we won't waste time with those anymore.
         // the ConfirmShot and FireTorpedo functions both implement the necessary safety modifiers
