@@ -244,8 +244,194 @@ contract("Battleships", function (accounts) {
                 await advanceBlock;
             }    
             // Clear the foul by advancing state
-            //console.log(await battleships.checkGameState(gameID));
             await battleships.payStake(gameID, {from:accounts[p2], value: stakeValue}); 
+        })
+        it("Foul during ACCEPTING_PAYMENT from P1", async () => {
+            p1 = 0;
+            p2 = 1;
+            await battleships.payStake(gameID, {from: accounts[p1], value: stakeValue}); 
+            const one = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(one.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(one.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(one.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + one.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }    
+            // Clear the foul by advancing state
+            await battleships.payStake(gameID, {from:accounts[p2], value: stakeValue}); 
+        })
+        it("Foul during P0_FIRING from P0", async () => {
+            p1 = 1;
+            p2 = 0;
+            await battleships.payStake(gameID, {value: stakeValue});
+            await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
+            const one = await battleships.checkGameState(gameID);
+            assert.equal(one, Battleships.GameStates.P0_FIRING);
+            const two = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(two.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(two.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + two.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }    
+            // Now P0 fires
+            await battleships.FireTorpedo(gameID, target_tile[p2][0], {from:accounts[p2]});
+        })
+        it("Foul during P1_FIRING from P1", async () => {
+            p1 = 0;
+            p2 = 1;
+            await battleships.payStake(gameID, {value: stakeValue});
+            await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
+            // play one round 
+            await battleships.FireTorpedo(gameID, target_tile[p1][0], {from:accounts[p1]});
+            var shipPresence = plain_board[p2][target_tile[p1][0]].ship;
+            var targetNode = leaf_nodes[p2][target_tile[p1][0]];
+            var nodeProof = merkle_tree_objects[p2].getHexProof(targetNode);
+            await battleships.ConfirmShot(gameID, target_tile[p1][0], shipPresence, targetNode, nodeProof, {from: accounts[p2]})
+            // confirm we are in P1_FIRING
+            const one = await battleships.checkGameState(gameID);
+            assert.equal(one, Battleships.GameStates.P1_FIRING);
+            // trigger foul
+            const two = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(two.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(two.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + two.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }    
+            // Now P1 fires
+            await battleships.FireTorpedo(gameID, target_tile[p2][0], {from:accounts[p2]});
+        })
+        it("Foul during P0_CHECKING from P0", async () => {
+            p1 = 0;
+            p2 = 1;
+            await battleships.payStake(gameID, {value: stakeValue});
+            await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
+            // play one round 
+            await battleships.FireTorpedo(gameID, target_tile[p1][0], {from:accounts[p1]});
+            var shipPresence = plain_board[p2][target_tile[p1][0]].ship;
+            var targetNode = leaf_nodes[p2][target_tile[p1][0]];
+            var nodeProof = merkle_tree_objects[p2].getHexProof(targetNode);
+            await battleships.ConfirmShot(gameID, target_tile[p1][0], shipPresence, targetNode, nodeProof, {from: accounts[p2]})
+            // start second round
+            p1 = 1;
+            p2 = 0;
+            await battleships.FireTorpedo(gameID, target_tile[p1][0], {from:accounts[p1]});
+            // confirm we are in P0_CHECKING
+            const one = await battleships.checkGameState(gameID);
+            assert.equal(one, Battleships.GameStates.P0_CHECKING);
+            // trigger foul
+            const two = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(two.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(two.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + two.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }    
+            // Now P0 checks
+            var shipPresence = plain_board[p2][target_tile[p1][0]].ship;
+            var targetNode = leaf_nodes[p2][target_tile[p1][0]];
+            var nodeProof = merkle_tree_objects[p2].getHexProof(targetNode);
+            await battleships.ConfirmShot(gameID, target_tile[p1][0], shipPresence, targetNode, nodeProof, {from: accounts[p2]})
+        })
+        it("Foul during P1_CHECKING from P1", async () => {
+            p1 = 0;
+            p2 = 1;
+            await battleships.payStake(gameID, {value: stakeValue});
+            await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
+            // play one round 
+            await battleships.FireTorpedo(gameID, target_tile[p1][0], {from:accounts[p1]});
+            // confirm we are in P1_CHECKING
+            const one = await battleships.checkGameState(gameID);
+            assert.equal(one, Battleships.GameStates.P1_CHECKING);
+            // trigger foul
+            const two = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(two.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(two.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + two.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }    
+            // Now P1 checks
+            var shipPresence = plain_board[p2][target_tile[p1][0]].ship;
+            var targetNode = leaf_nodes[p2][target_tile[p1][0]];
+            var nodeProof = merkle_tree_objects[p2].getHexProof(targetNode);
+            await battleships.ConfirmShot(gameID, target_tile[p1][0], shipPresence, targetNode, nodeProof, {from: accounts[p2]})
+        })
+        it("Foul during CHECKING_WINNER from P0", async () => {
+            p1 = 1;
+            p2 = 0;
+            await battleships.payStake(gameID, {value: stakeValue});
+            await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
+            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER);
+            await battleships.SetWinner(gameID, accounts[p2]);
+            const one = await battleships.checkGameState(gameID);
+            assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
+            // trigger foul
+            const two = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(two.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(two.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + two.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }
+            // reply with a real board
+            const winnerIndex = p2;
+            let tiles = [];
+            let ships = [];
+            plain_board[winnerIndex].forEach(element => {
+                tiles.push(element.tile);
+                ships.push(element.ship)
+            });
+            let proofs = [];
+            leaf_nodes[winnerIndex].forEach(element => {
+                proofs.push(merkle_tree_objects[winnerIndex].getHexProof(element))
+            });     
+            const reply = await battleships.VerifyWinner(gameID, tiles, ships, leaf_nodes[winnerIndex], proofs, board_root[winnerIndex], {from:accounts[winnerIndex]});
+            assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
+            const reply_two = await battleships.checkGameState(gameID);
+            assert.equal(reply_two, Battleships.GameStates.PAYABLE, "Contract not payable.");
+        })
+        it("Foul during CHECKING_WINNER from P1", async () => {
+            p1 = 1;
+            p2 = 0;
+            await battleships.payStake(gameID, {value: stakeValue});
+            await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
+            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER);
+            await battleships.SetWinner(gameID, accounts[p2]);
+            const one = await battleships.checkGameState(gameID);
+            assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
+            // trigger foul
+            const two = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(two.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(two.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + two.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }
+            // reply with a real board
+            const winnerIndex = p2;
+            let tiles = [];
+            let ships = [];
+            plain_board[winnerIndex].forEach(element => {
+                tiles.push(element.tile);
+                ships.push(element.ship)
+            });
+            let proofs = [];
+            leaf_nodes[winnerIndex].forEach(element => {
+                proofs.push(merkle_tree_objects[winnerIndex].getHexProof(element))
+            });     
+            const reply = await battleships.VerifyWinner(gameID, tiles, ships, leaf_nodes[winnerIndex], proofs, board_root[winnerIndex], {from:accounts[winnerIndex]});
+            assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
+            const reply_two = await battleships.checkGameState(gameID);
+            assert.equal(reply_two, Battleships.GameStates.PAYABLE, "Contract not payable.");
         })
     })
 });

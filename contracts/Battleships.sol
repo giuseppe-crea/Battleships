@@ -510,6 +510,7 @@ contract Battleships {
         // we don't use a conditional branch to alert the other player, as a Foul has already been triggered.
         openGames[gameID].canPay = true;
         openGames[gameID].state = GameStates.PAYABLE;
+        ClearFoul(gameID);
         emit Victory(gameID, msg.sender);
     }
 
