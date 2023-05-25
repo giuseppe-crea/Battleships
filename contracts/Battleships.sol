@@ -568,7 +568,7 @@ contract Battleships {
     function ClearFoul(uint gameID) private {
         if(openGames[gameID].accuser != address(0) && openGames[gameID].accuser != msg.sender){
             // if we are out of time to context the foul this function will fail
-            assert(openGames[gameID].blockNumber >= (block.number + foulBlockLen));
+            assert(openGames[gameID].blockNumber <= (block.number + foulBlockLen));
             // else it will clear the foul
             // just like setting the accuser, this is THE ONLY place in the contract where this assignment is made.
             openGames[gameID].accuser = address(0);

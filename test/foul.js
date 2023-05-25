@@ -125,13 +125,13 @@ contract("Battleships", function (accounts) {
             assert.equal(three, Battleships.GameStates.CHECKING_WINNER);
         })
         it("Foul during ACCEPTING_PAYMENT from P0", async () => {
-            p1 = 0;
-            p2 = 1;
-            await battleships.payStake(gameID, {value: stakeValue});     
-        })
-        it("Foul during ACCEPTING_PAYMENT from P1", async () => {
             p1 = 1;
             p2 = 0;
+            await battleships.payStake(gameID, {from: accounts[p1], value: stakeValue});     
+        })
+        it("Foul during ACCEPTING_PAYMENT from P1", async () => {
+            p1 = 0;
+            p2 = 1;
             await battleships.payStake(gameID, {from: accounts[p1], value: stakeValue});
         })
         it("Foul during P0_FIRING from P0", async () => {
@@ -206,6 +206,46 @@ contract("Battleships", function (accounts) {
             await battleships.SetWinner(gameID, accounts[p2]);
             const one = await battleships.checkGameState(gameID);
             assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
+        })
+    })
+    describe("Clearing Foul tests", async () =>{
+        beforeEach("Instantiate a new game.", async () => {
+            var newGame = await battleships.newGame(false, {from: accounts[0]});
+            gameID = Number(newGame.logs[0].args[2]);
+            await battleships.joinGame(gameID, {from: accounts[1]});
+            try{
+                await battleships.PlaceShips(gameID, board_root[0]);
+            } catch (error){
+                console.log(error);
+            }
+            await battleships.PlaceShips(gameID, board_root[1], {from: accounts[1]});
+            await battleships.proposeStake(gameID, stakeValue);
+            await battleships.proposeStake(gameID, stakeValue, {from: accounts[1]});
+        })
+        afterEach("Check that the status has cleared.", async () =>{
+            var errored = false;
+            try{
+                const one = await battleships.CheckFoulTimer(gameID, {from:accounts[p1]});
+            } catch (error){
+                errored = true;
+            }
+            assert(errored, "For some reason the accuser address hasn't cleared.");
+        })
+        it("Foul during ACCEPTING_PAYMENT from P0", async () => {
+            p1 = 1;
+            p2 = 0;
+            await battleships.payStake(gameID, {from: accounts[p1], value: stakeValue}); 
+            const one = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            assert.equal(one.logs[0].event, 'Foul', "Event of type Foul did not fire.")
+            assert.equal(one.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
+            assert.equal(one.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
+            console.log("Foul Event emitted for block number: " + one.logs[0].args[2])
+            for(var i = 0; i < 2; i++){
+                await advanceBlock;
+            }    
+            // Clear the foul by advancing state
+            //console.log(await battleships.checkGameState(gameID));
+            await battleships.payStake(gameID, {from:accounts[p2], value: stakeValue}); 
         })
     })
 });
