@@ -516,6 +516,8 @@ contract Battleships {
 
     // sadly using our modifiers here runs into a stack too deep compilation issue
     // ergo we must assert a few security values by hand
+    // yes, the 'tiles' array is completely useless but we will leave it there for now
+    // it could be useful for future expansions into 5d battleships
     function VerifyWinner(
     uint gameID,  
     uint8[] calldata tiles,
@@ -554,25 +556,14 @@ contract Battleships {
         emit Victory(gameID, msg.sender);
     }
 
+    function WithdrawWinnings(uint gameID) gameExists(gameID) isWinner(gameID) assertState(gameID, GameStates.PAYABLE) external {
+        uint amountOwed = openGames[gameID].decidedStake*2;
+        openGames[gameID].state = GameStates.DONE;
+        (bool success, ) = msg.sender.call{value:amountOwed}("");
+        require(success);
+    }
+
     // Assortment of debug functions
-    
-     function PreviewLeafNode(uint8 tile, bool ship) pure public returns (bytes memory) {
-        return abi.encode(tile, ship);
-    }
-
-    function QuickCheck(bytes32 leaf, bytes32 root, bytes32[] calldata proof) public returns (bool){
-        bool forTheDebugger = verifyCalldata(proof, root, leaf);
-        emit ShotsChecked(0, 0, false, forTheDebugger);
-        return forTheDebugger;
-    }
-
-    function EchoBytes(bytes32 proof) pure public returns (bytes32) {
-        return proof;
-    }
-
-    function EchoProof(bytes32[] calldata proof) pure public returns (bytes32[] calldata) {
-        return proof;
-    }
 
     function ChangeState(uint gameID, GameStates state) ownerOnly() public {
         openGames[gameID].state = state;

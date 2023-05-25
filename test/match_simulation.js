@@ -3,9 +3,10 @@
 
 const keccak256 = require("keccak256");
 const { MerkleTree } = require("merkletreejs");
+const rpcURL = 'http://127.0.0.1:7545'
 const Web3 = require("web3");
 
-const web3 = new Web3();
+const web3 = new Web3(rpcURL);
 
 // functions used in creating a new board for players.
 function generateRandomNumbers(count) {
@@ -69,7 +70,9 @@ const merkle_tree_objects = [p0_board_collection[2], p1_board_collection[2]];
 const tiles_p1 = generateRandomNumbers(64);
 const tiles_p2 = generateRandomNumbers(64);
 const target_tile = [tiles_p1, tiles_p2];
+const stakeValue = 5000;
 var winnerIndex;
+
 
 contract("Battleships", function (accounts) {
     let battleships;
@@ -77,10 +80,10 @@ contract("Battleships", function (accounts) {
         battleships = await Battleships.deployed();
         await battleships.newGame(false, {from: accounts[0]});
         await battleships.joinGame(1, {from: accounts[1]});
-        await battleships.proposeStake(1, 5000);
-        await battleships.proposeStake(1, 5000, {from: accounts[1]});
-        await battleships.payStake(1, {value: 5000});
-        await battleships.payStake(1, {from: accounts[1], value: 5000});
+        await battleships.proposeStake(1, stakeValue);
+        await battleships.proposeStake(1, stakeValue, {from: accounts[1]});
+        await battleships.payStake(1, {value: stakeValue});
+        await battleships.payStake(1, {from: accounts[1], value: stakeValue});
         await battleships.PlaceShips(1, board_root[0]);
         await battleships.PlaceShips(1, board_root[1], {from: accounts[1]});
     });
@@ -111,7 +114,7 @@ contract("Battleships", function (accounts) {
                 turn_number++;
                 round_number = Math.floor(turn_number/2);
                 process.stdout.write(".");
-            }while(turn_number < 128)
+            }while(turn_number < 300) // there is absolutely no reason this should take more than 123 turns, as the target_tiles arrays contain no repeats
             if(reply.logs[0].args[1] == accounts[0]){
                 winner = 'accounts[0]';
                 winnerIndex = 0;
@@ -119,7 +122,7 @@ contract("Battleships", function (accounts) {
                 winner = 'accounts[1]';
                 winnerIndex = 1;
             } else {
-                assert(false, "Winner address didn't match. Value was " + reply.logs[0].args[1]);
+                assert(false, "Winner address didn't match either player. Value was " + reply.logs[0].args[1]);
             }
             console.log("");
             console.log("Congratz, someone actually won! It was "+ winner + ", address " + accounts[winnerIndex]);
@@ -146,6 +149,26 @@ contract("Battleships", function (accounts) {
             assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
             const reply_two = await battleships.checkGameState(1);
             assert.equal(reply_two, Battleships.GameStates.PAYABLE, "Contract not payable.");
+        })
+        it("Winning player attempts to withdraw winnings.", async () =>{
+            
+            let expectedBalance = await web3.eth.getBalance(accounts[winnerIndex]);
+            const a = BigInt(expectedBalance);
+
+            const reply = await battleships.WithdrawWinnings(1, {from:accounts[winnerIndex]});
+            
+            let actualBalance = await web3.eth.getBalance(accounts[winnerIndex]);
+            const b = BigInt(actualBalance);
+
+            //console.log(reply);
+            const reply_two = await battleships.checkGameState(1, {from:accounts[3]});
+            assert.equal(reply_two, Battleships.GameStates.DONE, "Contract not done.");
+
+            const cost_one = reply.receipt.gasUsed * reply.receipt.effectiveGasPrice;
+            const cost = BigInt(cost_one);
+
+            const winnings = BigInt(stakeValue) * BigInt(2);
+            assert((a === (b + cost - winnings)), "The correct amount was deposited in the winner's wallet.");
         })
     })
 });
