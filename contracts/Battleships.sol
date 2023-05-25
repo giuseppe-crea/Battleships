@@ -28,6 +28,7 @@ contract Battleships {
         uint totalPieces;
         // 8*8, we use this to avoid cheating
         uint totalShots;
+        bool[BOARD_SIZE*BOARD_SIZE] board; 
     }
 
     struct Player{
@@ -391,6 +392,9 @@ contract Battleships {
         trampolineBoard.valid = true;
         trampolineBoard.totalPieces = NUMBER_OF_SHIP_SQUARES;
         trampolineBoard.totalShots = (BOARD_SIZE*BOARD_SIZE);
+        for(uint i = 0; i < (BOARD_SIZE*BOARD_SIZE); i++){
+            trampolineBoard.board[i] = false;
+        }
         openGames[gameID].players[index].shots_board = playerBoard;
         // save the received boardRoot, finally
         openGames[gameID].players[index].boardTreeRoot = boardRoot;
@@ -472,14 +476,20 @@ contract Battleships {
             // we could verify this user's proof
             if (isHit){
                 // decrement our opponent's view of our total pieces
-                openGames[gameID].players[indexes[1]].shots_board.totalPieces--;
-                // if this was our last piece, we lost
-                if(openGames[gameID].players[indexes[1]].shots_board.totalPieces == 0){
-                    openGames[gameID].winner = openGames[gameID].players[indexes[1]].playerAddress;
-                    openGames[gameID].state = GameStates.CHECKING_WINNER;
-                    RequestWinnerBoard(gameID, openGames[gameID].winner);
-                    return;
-                }
+                // only if the shot landed on a previously undeclared tile
+                // alas this is needed as the user might just keep asking for the same time over and over
+                // I don't know why they would do this, but they can
+                if(!openGames[gameID].players[indexes[1]].shots_board.board[location]){
+                    openGames[gameID].players[indexes[1]].shots_board.totalPieces--;
+                    openGames[gameID].players[indexes[1]].shots_board.board[location] = true;
+                    // if this was our last piece, we lost
+                    if(openGames[gameID].players[indexes[1]].shots_board.totalPieces == 0){
+                        openGames[gameID].winner = openGames[gameID].players[indexes[1]].playerAddress;
+                        openGames[gameID].state = GameStates.CHECKING_WINNER;
+                        RequestWinnerBoard(gameID, openGames[gameID].winner);
+                        return;
+                    }
+                }   
             }
             // rotate state
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
