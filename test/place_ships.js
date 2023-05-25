@@ -15,43 +15,23 @@ contract("Battleships", function (accounts) {
     });
     describe("Correct Placement tests.", async () =>{
         it("Player #0 posts their board.", async () =>{
-            // check that p0 board doesn't exist
-            const one = await battleships.getPlayerBoardRoot(1, 0);
-            assert.equal(one, 0x0, "Player #0 already had a board.");
-            // check that p0's shots board doesn't exist
-            const two = await battleships.getPlayerShotsBoard(1, 0);
-            assert.equal(two, false, "Player #0 already had a shots board.");
             // post a board
             const p0_board = '0x0000000000000000000000000000000000000000000000000000000000000001';
             const three = await battleships.PlaceShips(1, p0_board);
             assert.equal(three.logs[0].event, 'BoardAcknowledgeEvent', "Event of type SuggestedStake did not fire.");
             assert.equal(three.logs[0].args[0], 1, "Event was emitted for the wrong gameID.");
             assert.equal(three.logs[0].args[1], accounts[0], "Event was emitted for the wrong from.");
-            // check that p0's board exists
-            const four = await battleships.getPlayerBoardRoot(1, 0);
-            assert.equal(four, p0_board, "Player #0 didn't instantiate a board.");
-            // check that p0's shots board exists
-            const five = await battleships.getPlayerShotsBoard(1, 0);
-            assert.equal(five, true, "Player #0 didn't instantiate a shots board.");
             // check that game is still in state 3 
             const six = await battleships.checkGameState(1);
             assert.equal(six, Battleships.GameStates.PLACING_SHIPS, "State machine failure.");
         });
         it("Player #1 posts theirs.", async () =>{
-            const one = await battleships.getPlayerBoardRoot(1, 1);
-            assert.equal(one, 0x0, "Player #0 already had a board.");
-            const two = await battleships.getPlayerShotsBoard(1, 1);
-            assert.equal(two, false, "Player #0 already had a shots board.");
             const p1_board = '0x0000000000000000000000000000000000000000000000000000000000000002';
             const three = await battleships.PlaceShips(1, p1_board, {from: accounts[1]});
             assert.equal(three.logs[0].event, 'BoardAcknowledgeEvent', "Event of type SuggestedStake did not fire.");
             assert.equal(three.logs[0].args[0], 1, "Event was emitted for the wrong gameID.");
             assert.equal(three.logs[0].args[1], accounts[1], "Event was emitted for the wrong from.");
             assert.equal(three.logs[1].event, 'PlayerZeroTurn', "Event of type PlayerZeroTurn did not fire.");
-            const four = await battleships.getPlayerBoardRoot(1, 1);
-            assert.equal(four, p1_board, "Player #0 didn't instantiate a board.");
-            const five = await battleships.getPlayerShotsBoard(1, 1);
-            assert.equal(five, true, "Player #0 didn't instantiate a shots board."); 
             const six = await battleships.checkGameState(1);
             assert.equal(six, Battleships.GameStates.P0_FIRING, "State machine failure.");
         });

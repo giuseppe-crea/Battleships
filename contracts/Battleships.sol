@@ -52,7 +52,7 @@ contract Battleships {
         uint blockNumber;
         // player 0 or player 1
         // might turn it into address, we will see
-        bool accuser;
+        address accuser;
         // whether or not this game should be in the public pool of joinable games
         bool privateGame;
         address winner;
@@ -69,12 +69,15 @@ contract Battleships {
     // TODO: deal with it overflowing
     uint private gameCounter;
     uint private lastOpenGame;
+    uint8 private foulBlockLen;
     address private owner;
 
     constructor() {
         gameCounter = 1;
         lastOpenGame = 1;
         owner = msg.sender;
+        // this could be passed as parameter
+        foulBlockLen = 5;
     }
 
     event ShareID(address _from, address _to, uint _gameID);
@@ -89,17 +92,12 @@ contract Battleships {
     event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity);
     event RequestBoard(uint _gameID, address _winner);
     event Victory(uint _gameID, address _winner);
+    event Foul(uint _gameID, address _accused, uint _block);
 
     error InvalidGameID();
     error NotInGame();
     error StakeAlreadyDeposited();
     error WrongStakeAmount(uint expectedStakeValue);
-
-    // Used for debug only
-    modifier ownerOnly(){
-        assert(msg.sender == owner);
-        _;
-    }
 
     modifier gameExists(uint gameID){
         assert(openGames[gameID].valid);
@@ -382,8 +380,17 @@ contract Battleships {
         }
     }
 
+    function TestWinner(uint gameID, address claimant) private {
+        openGames[gameID].winner = claimant;
+        openGames[gameID].state = GameStates.CHECKING_WINNER;
+        RequestWinnerBoard(gameID, openGames[gameID].winner);
+    }
+
     // for info on what location is see "Implementation of the user-side game board" in README.md
     function FireTorpedo(uint gameID, uint8 location) gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_FIRING) public {
+        // if we got past the modifiers, this means the shot is valid
+        // let's clear any potential fouls for this user
+        ClearFoul(gameID);
         uint[2] memory indexes = getIndexSender(gameID);
         // Rotate into correct next state
         openGames[gameID].state == GameStates.P0_FIRING ? openGames[gameID].state = GameStates.P1_CHECKING : openGames[gameID].state = GameStates.P0_CHECKING;
@@ -393,9 +400,7 @@ contract Battleships {
         // Then we evaluate whether or not this is zero. If it is, This party wins automatically.
         // We do this here to avoid opponents stalling out on the reply for 5 blocks on what is a foregone conclusion
         if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
-            openGames[gameID].winner = msg.sender;
-            openGames[gameID].state = GameStates.CHECKING_WINNER;
-            RequestWinnerBoard(gameID, openGames[gameID].winner);
+            TestWinner(gameID, msg.sender);
         } else {
             emit ShotsFired(gameID, location);
         }
@@ -419,6 +424,9 @@ contract Battleships {
         assert(leaf == GenLeafNode(location, isHit));
         // execute the proof test
         if(verifyCalldata(proof, openGames[gameID].players[indexes[0]].boardTreeRoot, leaf)){
+            // if we got this far it means the reply is valid
+            // let's clear any potential fouls for this user
+            ClearFoul(gameID);
             // we could verify this user's proof
             if (isHit){
                 // decrement our opponent's view of our total pieces
@@ -441,8 +449,8 @@ contract Battleships {
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
             emit ShotsChecked(gameID, location, isHit, true);
         } else {
-            // else we mark him as foul'd but do NOT rotate the state.
-            // TODO IMPLEMENT FOUL MECHANICS
+            // else we emit a 'shot failed to validate' message
+            // keep in mind the foul for this user is NOT triggered automatically.
             emit ShotsChecked(gameID, location, isHit, false);
         }
     }
@@ -508,8 +516,58 @@ contract Battleships {
         require(success);
     }
 
+    // TODO: Unit test everything below this
+
+    // a player can accuse another player of being afk if they don't act within X blocks
+    // for this to happen, the state has to be one they don't control
+    function FoulAccusation(uint gameID) gameExists(gameID) public {
+        uint senderIndex;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            senderIndex = 0;
+            assert(openGames[gameID].state == GameStates.P1_FIRING || openGames[gameID].state == GameStates.P1_CHECKING);
+        } else if (msg.sender == openGames[gameID].players[1].playerAddress){
+            senderIndex = 1;
+            assert(openGames[gameID].state == GameStates.P0_FIRING || openGames[gameID].state == GameStates.P0_CHECKING);
+        } else {
+            assert(false);
+        }
+        require(openGames[gameID].accuser == address(0));
+        // very important: this is the only place where accuser can be set to anything other than 0
+        openGames[gameID].accuser = msg.sender;
+        openGames[gameID].blockNumber = block.number;
+        emit Foul(gameID, openGames[gameID].players[1 - senderIndex].playerAddress, openGames[gameID].blockNumber);
+    }
+
+    function CheckFoulTimer(uint gameID) gameExists(gameID) isInGame(gameID) public {
+        require(openGames[gameID].accuser != address(0));
+        if(openGames[gameID].blockNumber < (block.number + foulBlockLen)){
+            // the other player abandoned this game
+            TestWinner(gameID, openGames[gameID].accuser);
+        }
+    }
+
+    // a foul can only be cleared by properly advancing the state
+    // thus this function has to be called from within our check/fire functions
+    function ClearFoul(uint gameID) private {
+        if(openGames[gameID].accuser != address(0) && openGames[gameID].accuser != msg.sender){
+            // if we are out of time to context the foul this function will fail
+            assert(openGames[gameID].blockNumber >= (block.number + foulBlockLen));
+            // else it will clear the foul
+            openGames[gameID].accuser = address(0);
+        }
+    }
+
     // Assortment of debug functions
 
+    function ChangeState(uint gameID, GameStates state) public {
+        openGames[gameID].state = state;
+    }
+
+    function SetWinner(uint gameID, address winner) public {
+        openGames[gameID].winner = winner;
+    }
+    
+/*
     // this function is not currently used in any test file
     function checkPaymentPlayer(uint gameID, uint index) public view returns (bool) {
         if (openGames[gameID].valid && openGames[gameID].players[index].valid){
@@ -534,4 +592,5 @@ contract Battleships {
     function SetWinner(uint gameID, address winner) ownerOnly() public {
         openGames[gameID].winner = winner;
     }
+    */
 }
