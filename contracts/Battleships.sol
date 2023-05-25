@@ -449,7 +449,7 @@ contract Battleships {
         if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
             openGames[gameID].winner = msg.sender;
             openGames[gameID].state = GameStates.CHECKING_WINNER;
-            RequestWinnerBoard(gameID, msg.sender);
+            RequestWinnerBoard(gameID, openGames[gameID].winner);
         } else {
             emit ShotsFired(gameID, location);
         }
@@ -525,6 +525,7 @@ contract Battleships {
     ) public {
         uint winnerIndex;
         assert(openGames[gameID].valid);
+        assert(openGames[gameID].state == GameStates.CHECKING_WINNER);
         if(openGames[gameID].winner == openGames[gameID].players[0].playerAddress){
             winnerIndex = 0;
         } else {

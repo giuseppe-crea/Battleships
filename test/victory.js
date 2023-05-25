@@ -99,7 +99,14 @@ contract("Battleships", function (accounts) {
             let proofs = [];
             p0_leaf_nodes.forEach(element => {
                 proofs.push(p0_board_collection[2].getHexProof(element))
-            });          
+            });   
+            /*
+            console.log(tiles);
+            console.log(ships);
+            console.log(proofs);
+            console.log(p0_leaf_nodes);
+            console.log(p0_board);       
+            */
             const reply = await battleships.VerifyWinner(1, tiles, ships, p0_leaf_nodes, proofs, p0_board);
             assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
         })

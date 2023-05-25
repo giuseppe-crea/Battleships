@@ -69,6 +69,7 @@ const merkle_tree_objects = [p0_board_collection[2], p1_board_collection[2]];
 const tiles_p1 = generateRandomNumbers(64);
 const tiles_p2 = generateRandomNumbers(64);
 const target_tile = [tiles_p1, tiles_p2];
+var winnerIndex;
 
 contract("Battleships", function (accounts) {
     let battleships;
@@ -113,13 +114,36 @@ contract("Battleships", function (accounts) {
             }while(turn_number < 128)
             if(reply.logs[0].args[1] == accounts[0]){
                 winner = 'accounts[0]';
+                winnerIndex = 0;
             } else if(reply.logs[0].args[1] == accounts[1]){
                 winner = 'accounts[1]';
+                winnerIndex = 1;
             } else {
-                winner = '0x0';
+                assert(false, "Winner address didn't match. Value was " + reply.logs[0].args[1]);
             }
             console.log("");
-            console.log("Congratz, someone actually won! It was "+ winner + ", address " + reply.logs[0].args[1]);
+            console.log("Congratz, someone actually won! It was "+ winner + ", address " + accounts[winnerIndex]);
+        })
+        it("Winning player attempts to validate their board.", async () => {
+            let tiles = [];
+            let ships = [];
+            plain_board[winnerIndex].forEach(element => {
+                tiles.push(element.tile);
+                ships.push(element.ship)
+            });
+            let proofs = [];
+            leaf_nodes[winnerIndex].forEach(element => {
+                proofs.push(merkle_tree_objects[winnerIndex].getHexProof(element))
+            });        
+            /*  
+            console.log(tiles);
+            console.log(ships);
+            console.log(proofs);
+            console.log(leaf_nodes[winnerIndex]);
+            console.log(board_root[winnerIndex]);
+            */
+            const reply = await battleships.VerifyWinner(1, tiles, ships, leaf_nodes[winnerIndex], proofs, board_root[winnerIndex], {from:accounts[winnerIndex]});
+            assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
         })
     })
 });
