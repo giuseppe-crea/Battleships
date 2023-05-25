@@ -440,9 +440,12 @@ contract Battleships {
                     openGames[gameID].players[indexes[1]].shots_board.board[location] = true;
                     // if this was our last piece, we lost
                     if(openGames[gameID].players[indexes[1]].shots_board.totalPieces == 0){
+                        /*
                         openGames[gameID].winner = openGames[gameID].players[indexes[1]].playerAddress;
                         openGames[gameID].state = GameStates.CHECKING_WINNER;
                         RequestWinnerBoard(gameID, openGames[gameID].winner);
+                        */
+                        TestWinner(gameID, openGames[gameID].players[indexes[1]].playerAddress);
                         return;
                     }
                 }   
@@ -524,17 +527,28 @@ contract Battleships {
     // for this to happen, the state has to be one they don't control
     function FoulAccusation(uint gameID) gameExists(gameID) public {
         uint senderIndex;
-        if(msg.sender == openGames[gameID].players[0].playerAddress){
+        if(msg.sender == openGames[gameID].players[0].playerAddress)
             senderIndex = 0;
-            assert(openGames[gameID].state == GameStates.P1_FIRING || openGames[gameID].state == GameStates.P1_CHECKING || openGames[gameID].state == GameStates.ACCEPTING_PAYMENT);
-        } else if (msg.sender == openGames[gameID].players[1].playerAddress){
+        else if (msg.sender == openGames[gameID].players[1].playerAddress)
             senderIndex = 1;
-            assert(openGames[gameID].state == GameStates.P0_FIRING || openGames[gameID].state == GameStates.P0_CHECKING || openGames[gameID].state == GameStates.ACCEPTING_PAYMENT);
-        } else {
+        // if the game is stuck waiting on Player 1, only accept accusations from Player 0
+        if(openGames[gameID].state == GameStates.P1_FIRING || openGames[gameID].state == GameStates.P1_CHECKING){
+            assert(senderIndex == 0);
+        // if the game is stuck waiting on Player 0, only accept accusations from Player 1
+        } else if (openGames[gameID].state == GameStates.P0_FIRING || openGames[gameID].state == GameStates.P0_CHECKING){
+            assert(senderIndex == 1);
+        } 
+        // if the game is stuck accepting payments, only accept accusations by the side which hasn't paid yet
+        else if(openGames[gameID].state == GameStates.ACCEPTING_PAYMENT){
+            assert(openGames[gameID].players[senderIndex].hasPaidStake);
+        }
+        // if the game is stuck checking the winner, because a user isn't providing their board, only accept fouls from the non-winner
+        else if(openGames[gameID].state == GameStates.CHECKING_WINNER)
+            assert(msg.sender != openGames[gameID].winner);
+        else {
             assert(false);
         }
-        if(openGames[gameID].state == GameStates.ACCEPTING_PAYMENT)
-            assert(openGames[gameID].players[senderIndex].hasPaidStake);
+        
         require(openGames[gameID].accuser == address(0));
         // very important: this is the only place where accuser can be set to anything other than 0
         openGames[gameID].accuser = msg.sender;
@@ -557,6 +571,7 @@ contract Battleships {
             // if we are out of time to context the foul this function will fail
             assert(openGames[gameID].blockNumber >= (block.number + foulBlockLen));
             // else it will clear the foul
+            // just like setting the accuser, this is THE ONLY place in the contract where this assignment is made.
             openGames[gameID].accuser = address(0);
         }
     }
@@ -573,31 +588,4 @@ contract Battleships {
     function SetWinner(uint gameID, address winner) public {
         openGames[gameID].winner = winner;
     }
-    
-/*
-    // this function is not currently used in any test file
-    function checkPaymentPlayer(uint gameID, uint index) public view returns (bool) {
-        if (openGames[gameID].valid && openGames[gameID].players[index].valid){
-            return openGames[gameID].players[index].hasPaidStake;
-        }
-        else 
-            return(false);
-    }
-
-    function getPlayerBoardRoot(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) public view returns(bytes32){
-        return openGames[gameID].players[index].boardTreeRoot;
-    }
-
-    function getPlayerShotsBoard(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) public view returns(bool){
-        return openGames[gameID].players[index].shots_board.valid;
-    }
-
-    function ChangeState(uint gameID, GameStates state) ownerOnly() public {
-        openGames[gameID].state = state;
-    }
-
-    function SetWinner(uint gameID, address winner) ownerOnly() public {
-        openGames[gameID].winner = winner;
-    }
-    */
 }
