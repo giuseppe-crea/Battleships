@@ -109,6 +109,7 @@ contract("Battleships", function (accounts) {
                 p2 = 1 - p2;
                 turn_number++;
                 round_number = Math.floor(turn_number/2);
+                process.stdout.write(".");
             }while(turn_number < 128)
             if(reply.logs[0].args[1] == accounts[0]){
                 winner = 'accounts[0]';
@@ -117,6 +118,7 @@ contract("Battleships", function (accounts) {
             } else {
                 winner = '0x0';
             }
+            console.log("");
             console.log("Congratz, someone actually won! It was "+ winner + ", address " + reply.logs[0].args[1]);
         })
     })
