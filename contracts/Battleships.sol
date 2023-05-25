@@ -469,7 +469,6 @@ contract Battleships {
     // a player who sees their address here will need to call VerifyWinner
     function RequestWinnerBoard(uint gameID, address winnerAddress) private {
         emit RequestBoard(gameID, winnerAddress);
-        // TODO: start foul counter
     }
 
     // sadly using our modifiers here runs into a stack too deep compilation issue
