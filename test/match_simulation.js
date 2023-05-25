@@ -144,6 +144,8 @@ contract("Battleships", function (accounts) {
             */
             const reply = await battleships.VerifyWinner(1, tiles, ships, leaf_nodes[winnerIndex], proofs, board_root[winnerIndex], {from:accounts[winnerIndex]});
             assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
+            const reply_two = await battleships.checkGameState(1);
+            assert.equal(reply_two, Battleships.GameStates.PAYABLE, "Contract not payable.");
         })
     })
 });

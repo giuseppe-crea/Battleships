@@ -14,6 +14,7 @@ contract Battleships {
         P1_FIRING,
         P0_CHECKING,
         CHECKING_WINNER,
+        PAYABLE,
         DONE,
         NONE
     }
@@ -549,6 +550,7 @@ contract Battleships {
         assert(shipsTotal == NUMBER_OF_SHIP_SQUARES);
         // we don't use a conditional branch to alert the other player, as a Foul has already been triggered.
         openGames[gameID].canPay = true;
+        openGames[gameID].state = GameStates.PAYABLE;
         emit Victory(gameID, msg.sender);
     }
 

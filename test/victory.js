@@ -67,6 +67,17 @@ const p0_board = p0_board_collection[2].getHexRoot();
 const p1_plain_board = p1_board_collection[0];
 const p1_leaf_nodes =  p1_board_collection[1];
 const p1_board = p1_board_collection[2].getHexRoot();
+// data to send for verification
+let tiles = [];
+let ships = [];
+p0_plain_board.forEach(element => {
+    tiles.push(element.tile);
+    ships.push(element.ship)
+});
+let proofs = [];
+p0_leaf_nodes.forEach(element => {
+    proofs.push(p0_board_collection[2].getHexProof(element))
+});
 
 contract("Battleships", function (accounts) {
     let battleships;
@@ -84,31 +95,65 @@ contract("Battleships", function (accounts) {
         await battleships.ChangeState(1, Battleships.GameStates.CHECKING_WINNER);
         await battleships.SetWinner(1, accounts[0]);
     });
+    describe("Negative tests", async () =>{
+        it("Assert correct setup:", async () =>{
+            const reply = await battleships.checkGameState(1);
+            assert.equal(reply, Battleships.GameStates.CHECKING_WINNER, "Failed Setup");
+        })
+        it("Call VerifyWinner from the wrong address.", async () =>{
+            var errored = false;
+            try{
+                await battleships.VerifyWinner(1, tiles, ships, p0_leaf_nodes, proofs, p0_board, {from:accounts[1]});
+            } catch (error) {
+                errored = true;
+            }
+            assert(errored, "No exception was logged!");
+        })
+        it("Call VerifyWinner with the wrong root.", async () =>{
+            var errored = false;
+            try{
+                await battleships.VerifyWinner(1, tiles, ships, p0_leaf_nodes, proofs, p1_board);
+            } catch (error) {
+                errored = true;
+            }
+            assert(errored, "No exception was logged!");
+        })
+        it("Call VerifyWinner with one wrong proof.", async () =>{
+            var errored = false;
+            const proofs_tmp = proofs[12][2];
+            proofs[12][2] = proofs[63][0];
+            try{
+                await battleships.VerifyWinner(1, tiles, ships, p0_leaf_nodes, proofs, p0_board);
+            } catch (error) {
+                errored = true;
+            }
+            // restore correct proof
+            proofs[12][2] = proofs_tmp;
+            assert(errored, "No exception was logged!");
+        })
+        it("Call VerifyWinner with one fake node.", async () =>{
+            var errored = false;
+            try{
+                ships[12] = !ships[12];
+                await battleships.VerifyWinner(1, tiles, ships, p0_leaf_nodes, proofs, p0_board);
+            } catch (error) {
+                errored = true;
+                // flip it back for the positive tests
+                ships[12] = !ships[12];
+            }
+            assert(errored, "No exception was logged!");
+        })
+    });
     describe("Positive tests", async () =>{
         it("Assert correct setup:", async () =>{
             const reply = await battleships.checkGameState(1);
             assert.equal(reply, Battleships.GameStates.CHECKING_WINNER, "Failed Setup");
         })
         it("Call VerifyWinner.", async () =>{
-            let tiles = [];
-            let ships = [];
-            p0_plain_board.forEach(element => {
-                tiles.push(element.tile);
-                ships.push(element.ship)
-            });
-            let proofs = [];
-            p0_leaf_nodes.forEach(element => {
-                proofs.push(p0_board_collection[2].getHexProof(element))
-            });   
-            /*
-            console.log(tiles);
-            console.log(ships);
-            console.log(proofs);
-            console.log(p0_leaf_nodes);
-            console.log(p0_board);       
-            */
             const reply = await battleships.VerifyWinner(1, tiles, ships, p0_leaf_nodes, proofs, p0_board);
             assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
+            const reply_two = await battleships.checkGameState(1);
+            assert.equal(reply_two, Battleships.GameStates.PAYABLE, "Contract not payable.");
         })
     });
 });
