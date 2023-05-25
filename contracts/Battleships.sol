@@ -390,7 +390,7 @@ contract Battleships {
         Board storage playerBoard = trampolineBoard;
         trampolineBoard.valid = true;
         trampolineBoard.totalPieces = NUMBER_OF_SHIP_SQUARES;
-        trampolineBoard.totalShots = BOARD_SIZE;
+        trampolineBoard.totalShots = (BOARD_SIZE*BOARD_SIZE);
         openGames[gameID].players[index].shots_board = playerBoard;
         // save the received boardRoot, finally
         openGames[gameID].players[index].boardTreeRoot = boardRoot;
@@ -444,13 +444,26 @@ contract Battleships {
         // We do this here to avoid opponents stalling out on the reply for 5 blocks on what is a foregone conclusion
         if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
             openGames[gameID].winner = msg.sender;
+            openGames[gameID].state = GameStates.CHECKING_WINNER;
             RequestWinnerBoard(gameID, msg.sender);
         } else {
             emit ShotsFired(gameID, location);
         }
     }
-    
-    function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof) gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING) public {
+    //gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING)
+    function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof)  public {
+        // as before, using modifiers runs us into a stack too deep issue
+        // therefore we are gonna hand-check those values ourselves
+        assert(openGames[gameID].valid);
+        assert(location < (BOARD_SIZE*BOARD_SIZE));
+        if(openGames[gameID].players[0].playerAddress == msg.sender){
+            assert(openGames[gameID].state == GameStates.P0_CHECKING);
+        } else if (openGames[gameID].players[1].playerAddress == msg.sender){
+            assert(openGames[gameID].state == GameStates.P1_CHECKING);
+        } else {
+            assert(false);
+        }
+
         uint[2] memory indexes = getIndexSender(gameID);
         // This very time consuming copy is needed because apparently using gameID directly causes a stack-too-deep issue.
         Game memory tmpGame = openGames[gameID];
@@ -459,6 +472,17 @@ contract Battleships {
         // execute the proof test
         if(verifyCalldata(proof, tmpGame.players[indexes[0]].boardTreeRoot, leaf)){
             // we could verify this user's proof
+            if (isHit){
+                // decrement our opponent's view of our total pieces
+                openGames[gameID].players[indexes[1]].shots_board.totalPieces--;
+                // if this was our last piece, we lost
+                if(openGames[gameID].players[indexes[1]].shots_board.totalPieces == 0){
+                    openGames[gameID].winner = openGames[gameID].players[indexes[1]].playerAddress;
+                    openGames[gameID].state = GameStates.CHECKING_WINNER;
+                    RequestWinnerBoard(gameID, openGames[gameID].winner);
+                    return;
+                }
+            }
             // rotate state
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
             emit ShotsChecked(gameID, location, isHit, true);
