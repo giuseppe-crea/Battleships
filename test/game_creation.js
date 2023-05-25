@@ -25,13 +25,13 @@ contract("Battleships", function (accounts) {
         assert.equal(currGames, 0, "Somehow game #1 is not in state 0!");
       });
       it("Checking host for game #0", async () => {
-        const playerOne = await battleships.checkGamePlayerOne(1);
+        const playerOne = await battleships.checkGamePlayer(1, 0);
         assert.equal(playerOne, accounts[0], "Game #1 has the wrong host!");
       });
     });
     describe("Joining an existing game by id.", async () => {
       it("Game #1 should have no second player.", async () => {
-        const currGames = await battleships.checkGamePlayerTwo(1);
+        const currGames = await battleships.checkGamePlayer(1, 1);
         assert.equal(currGames, 0, "Somehow game #1 already has a second player!")
       });
       it("Joining game #1 with accounts[1].", async () => {
@@ -43,7 +43,7 @@ contract("Battleships", function (accounts) {
         assert.equal(currGames.logs[0].args[2], accounts[1], "Event was emitted for the wrong challenger.");
       });
       it("Game #1 should have account[1] as second player.", async () => {
-        const currGames = await battleships.checkGamePlayerTwo(1);
+        const currGames = await battleships.checkGamePlayer(1, 1);
         assert.equal(currGames, accounts[1], "Wrong second address for game #1.")
       });
       it("Game #1 should be in 'setting stake' state.", async () => {
@@ -76,7 +76,7 @@ contract("Battleships", function (accounts) {
         assert.equal(currGames.logs[0].args[2], accounts[4], "Event was emitted for the wrong challenger.");
       });
       it("Game #2 should have account[4] as second player.", async () => {
-        const currGames = await battleships.checkGamePlayerTwo(2);
+        const currGames = await battleships.checkGamePlayer(2, 1);
         assert.equal(currGames, accounts[4], "Wrong second address for game #2.")
       });
       it("Game #2 should be in 'setting stake' state.", async () => {
@@ -92,7 +92,7 @@ contract("Battleships", function (accounts) {
         assert.equal(currGames.logs[0].args[2], accounts[4], "Event was emitted for the wrong challenger.");
       });
       it("Game #4 should have account[4] as second player.", async () => {
-        const currGames = await battleships.checkGamePlayerTwo(4);
+        const currGames = await battleships.checkGamePlayer(4, 1);
         assert.equal(currGames, accounts[4], "Wrong second address for game #4.")
       });
       it("Game #4 should be in 'setting stake' state.", async () => {
@@ -109,7 +109,7 @@ contract("Battleships", function (accounts) {
         assert.equal(currGames.logs[0].args[2], accounts[4], "Event was emitted for the wrong challenger.");
       });
       it("Game #3 should have account[4] as second player.", async () => {
-        const currGames = await battleships.checkGamePlayerTwo(3);
+        const currGames = await battleships.checkGamePlayer(3, 1);
         assert.equal(currGames, accounts[4], "Wrong second address for game #3.")
       });
       it("Game #3 should be in 'setting stake' state.", async () => {

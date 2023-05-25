@@ -265,17 +265,9 @@ contract Battleships {
             return(GameStates.NONE);
     }
 
-    function checkGamePlayerOne(uint gameID) public view returns (address) {
-        if (openGames[gameID].valid && openGames[gameID].players[0].valid){
-            return openGames[gameID].players[0].playerAddress;
-        }
-        else 
-            return(address(0));
-    }
-
-    function checkGamePlayerTwo(uint gameID) public view returns (address) {
-        if (openGames[gameID].valid && openGames[gameID].players[1].valid){
-            return openGames[gameID].players[1].playerAddress;
+    function checkGamePlayer(uint gameID, uint index) public view returns (address) {
+        if (openGames[gameID].valid && openGames[gameID].players[index].valid){
+            return openGames[gameID].players[index].playerAddress;
         }
         else 
             return(address(0));
@@ -357,23 +349,7 @@ contract Battleships {
             emit AcceptingBoards(gameID);
         }
     }
-
-    function checkPaymentPlayerOne(uint gameID) public view returns (bool) {
-        if (openGames[gameID].valid && openGames[gameID].players[0].valid){
-            return openGames[gameID].players[0].hasPaidStake;
-        }
-        else 
-            return(false);
-    }
-
-    function checkPaymentPlayerTwo(uint gameID) public view returns (bool) {
-        if (openGames[gameID].valid && openGames[gameID].players[1].valid){
-            return openGames[gameID].players[1].hasPaidStake;
-        }
-        else 
-            return(false);
-    }
-
+    
     function checkGamePayable(uint gameID) public view returns (bool) {
         if (openGames[gameID].valid && openGames[gameID].players[0].valid && openGames[gameID].players[1].valid)
             return openGames[gameID].canPay;
@@ -404,37 +380,6 @@ contract Battleships {
             openGames[gameID].state = GameStates.P0_FIRING;
             emit PlayerZeroTurn(gameID);
         }
-    }
-
-    function getPlayerBoardRoot(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) private view returns(bytes32){
-        return openGames[gameID].players[index].boardTreeRoot;
-    }
-
-    function getPlayerOneBoardRoot(uint gameID) public view returns (bytes32){
-        return getPlayerBoardRoot(gameID, 0);
-    }
-
-    function getPlayerTwoBoardRoot(uint gameID) public view returns (bytes32){
-        return getPlayerBoardRoot(gameID, 1);
-    }
-
-    // We should never have any use for these following functions
-    // Marking them as DEPRECATED now
-    // we will see if they survive the cutting room floor
-    
-    // DEPRECATED
-    function getPlayerShotsBoard(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) private view returns(bool){
-        return openGames[gameID].players[index].shots_board.valid;
-    }
-
-    // DEPRECATED
-    function getPlayerOneShotsBoard(uint gameID) public view returns (bool){
-        return getPlayerShotsBoard(gameID, 0);
-    }
-
-    // DEPRECATED
-    function getPlayerTwoShotsBoard(uint gameID) public view returns (bool){
-        return getPlayerShotsBoard(gameID, 1);
     }
 
     // for info on what location is see "Implementation of the user-side game board" in README.md
@@ -564,6 +509,23 @@ contract Battleships {
     }
 
     // Assortment of debug functions
+
+    // this function is not currently used in any test file
+    function checkPaymentPlayer(uint gameID, uint index) public view returns (bool) {
+        if (openGames[gameID].valid && openGames[gameID].players[index].valid){
+            return openGames[gameID].players[index].hasPaidStake;
+        }
+        else 
+            return(false);
+    }
+
+    function getPlayerBoardRoot(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) public view returns(bytes32){
+        return openGames[gameID].players[index].boardTreeRoot;
+    }
+
+    function getPlayerShotsBoard(uint gameID, uint index) playerInRange(gameID, index) gameExists(gameID) public view returns(bool){
+        return openGames[gameID].players[index].shots_board.valid;
+    }
 
     function ChangeState(uint gameID, GameStates state) ownerOnly() public {
         openGames[gameID].state = state;
