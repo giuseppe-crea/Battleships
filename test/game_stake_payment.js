@@ -1,4 +1,5 @@
 const Battleships = artifacts.require("Battleships");
+const board_root = ['0x1', '0x2'];
 
 contract("Battleships", function (accounts) {
     let battleships;
@@ -6,6 +7,8 @@ contract("Battleships", function (accounts) {
         battleships = await Battleships.deployed();
         await battleships.newGame(false, {from: accounts[0]});
         await battleships.joinGame(1, {from: accounts[1]});
+        await battleships.PlaceShips(1, board_root[0]);
+        await battleships.PlaceShips(1, board_root[1], {from: accounts[1]});
         await battleships.proposeStake(1, 5000);
         await battleships.proposeStake(1, 5000, {from: accounts[1]});
         const reply = await battleships.checkGameState(1);
@@ -74,11 +77,11 @@ contract("Battleships", function (accounts) {
             assert.equal(reply.logs[0].event, 'StakePaid', "Event of type StakePaid did not fire.");
             assert.equal(reply.logs[0].args[0], 1, "Event was emitted for the wrong gameID.");
             assert.equal(reply.logs[0].args[1], accounts[1], "Event was emitted for the wrong from.");
-            assert.equal(reply.logs[1].event, 'AcceptingBoards', "Event of type AcceptingBoards did not fire.");
+            assert.equal(reply.logs[1].event, 'PlayerZeroTurn', "Event of type PlayerZeroTurn did not fire.");
         });
         it("Making sure the game is in the correct state.", async () => {
             const reply = await battleships.checkGameState(1);
-            assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Game is not in PLACING_SHIPS state!")
+            assert.equal(reply, Battleships.GameStates.P0_FIRING, "Game is not in PLACING_SHIPS state!")
         })
     });
 });

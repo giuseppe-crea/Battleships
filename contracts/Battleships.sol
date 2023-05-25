@@ -249,9 +249,9 @@ contract Battleships {
         challenger.hasPaidStake = false;
         openGames[gameID].players[1] = challenger;
         // update this game's status
-        openGames[gameID].state = GameStates.SETTING_STAKE;
+        openGames[gameID].state = GameStates.PLACING_SHIPS;
         // alert the players
-        emit GameStart(gameID, openGames[gameID].players[0].playerAddress, msg.sender);
+        emit AcceptingBoards(gameID);
         return;
     }
 
@@ -340,11 +340,13 @@ contract Battleships {
             challengerIndex = 0;
         }
         openGames[gameID].players[senderIndex].hasPaidStake = true;
+        // Clear possible foul
+        ClearFoul(gameID);
         emit StakePaid(gameID, msg.sender);
         // if both players have paid the owed stake the game can move on to its next state
         if(openGames[gameID].players[challengerIndex].hasPaidStake){
-            openGames[gameID].state = GameStates.PLACING_SHIPS;
-            emit AcceptingBoards(gameID);
+            openGames[gameID].state = GameStates.P0_FIRING;
+            emit PlayerZeroTurn(gameID);
         }
     }
     
@@ -375,8 +377,8 @@ contract Battleships {
         openGames[gameID].players[index].boardTreeRoot = boardRoot;
         emit BoardAcknowledgeEvent(gameID, msg.sender);
         if(openGames[gameID].players[oppIdx].boardTreeRoot != 0x0){
-            openGames[gameID].state = GameStates.P0_FIRING;
-            emit PlayerZeroTurn(gameID);
+            openGames[gameID].state = GameStates.SETTING_STAKE;
+            emit GameStart(gameID, openGames[gameID].players[0].playerAddress, msg.sender);
         }
     }
 
@@ -524,13 +526,15 @@ contract Battleships {
         uint senderIndex;
         if(msg.sender == openGames[gameID].players[0].playerAddress){
             senderIndex = 0;
-            assert(openGames[gameID].state == GameStates.P1_FIRING || openGames[gameID].state == GameStates.P1_CHECKING);
+            assert(openGames[gameID].state == GameStates.P1_FIRING || openGames[gameID].state == GameStates.P1_CHECKING || openGames[gameID].state == GameStates.ACCEPTING_PAYMENT);
         } else if (msg.sender == openGames[gameID].players[1].playerAddress){
             senderIndex = 1;
-            assert(openGames[gameID].state == GameStates.P0_FIRING || openGames[gameID].state == GameStates.P0_CHECKING);
+            assert(openGames[gameID].state == GameStates.P0_FIRING || openGames[gameID].state == GameStates.P0_CHECKING || openGames[gameID].state == GameStates.ACCEPTING_PAYMENT);
         } else {
             assert(false);
         }
+        if(openGames[gameID].state == GameStates.ACCEPTING_PAYMENT)
+            assert(openGames[gameID].players[senderIndex].hasPaidStake);
         require(openGames[gameID].accuser == address(0));
         // very important: this is the only place where accuser can be set to anything other than 0
         openGames[gameID].accuser = msg.sender;
@@ -558,6 +562,9 @@ contract Battleships {
     }
 
     // Assortment of debug functions
+    // These functions HAVE to be removed before final deployment
+    // the only reason they don't have an owner only modifier or inner assertion to the same effect is that we are ENTIRELY out of room
+    // this is as fat as the compiled contract can ever be
 
     function ChangeState(uint gameID, GameStates state) public {
         openGames[gameID].state = state;

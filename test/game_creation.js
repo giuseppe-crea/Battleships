@@ -37,18 +37,16 @@ contract("Battleships", function (accounts) {
       it("Joining game #1 with accounts[1].", async () => {
         const currGames = await battleships.joinGame(1, {from: accounts[1]});
         // catch the emitted start game event
-        assert.equal(currGames.logs[0].event, 'GameStart', "Event of type GameStart did not fire.");
+        assert.equal(currGames.logs[0].event, 'AcceptingBoards', "Event of type AcceptingBoards did not fire.");
         assert.equal(currGames.logs[0].args[0], 1, "Event was emitted for the wrong gameID.");
-        assert.equal(currGames.logs[0].args[1], accounts[0], "Event was emitted for the wrong host.");
-        assert.equal(currGames.logs[0].args[2], accounts[1], "Event was emitted for the wrong challenger.");
       });
       it("Game #1 should have account[1] as second player.", async () => {
         const currGames = await battleships.checkGamePlayer(1, 1);
         assert.equal(currGames, accounts[1], "Wrong second address for game #1.")
       });
-      it("Game #1 should be in 'setting stake' state.", async () => {
+      it("Game #1 should be in 'PLACING_SHIPS' state.", async () => {
         const currGames = await battleships.checkGameState(1);
-        assert.equal(currGames, 1, "Wrong state for game #1.")
+        assert.equal(currGames, Battleships.GameStates.PLACING_SHIPS, "Wrong state for game #1.")
       });
     });
     describe("Joining an existing game at random.", async () => {
@@ -70,51 +68,45 @@ contract("Battleships", function (accounts) {
       it("Joining first open game (#2) with accounts[4].", async () => {
         const currGames = await battleships.joinGame(0, {from: accounts[4]});
         // catch the emitted start game event
-        assert.equal(currGames.logs[0].event, 'GameStart', "Event of type GameStart did not fire.");
+        assert.equal(currGames.logs[0].event, 'AcceptingBoards', "Event of type AcceptingBoards did not fire.");
         assert.equal(currGames.logs[0].args[0], 2, "Event was emitted for the wrong gameID.");
-        assert.equal(currGames.logs[0].args[1], accounts[2], "Event was emitted for the wrong host.");
-        assert.equal(currGames.logs[0].args[2], accounts[4], "Event was emitted for the wrong challenger.");
       });
       it("Game #2 should have account[4] as second player.", async () => {
         const currGames = await battleships.checkGamePlayer(2, 1);
         assert.equal(currGames, accounts[4], "Wrong second address for game #2.")
       });
-      it("Game #2 should be in 'setting stake' state.", async () => {
+      it("Game #2 should be in 'PLACING_SHIPS' state.", async () => {
         const currGames = await battleships.checkGameState(2);
-        assert.equal(currGames, Battleships.GameStates.SETTING_STAKE, "Wrong state for game #2.")
+        assert.equal(currGames, Battleships.GameStates.PLACING_SHIPS, "Wrong state for game #2.")
       });
       it("Joining second open game (#4) with accounts[4].", async () => {
         const currGames = await battleships.joinGame(0, {from: accounts[4]});
         // catch the emitted start game event
-        assert.equal(currGames.logs[0].event, 'GameStart', "Event of type GameStart did not fire.");
+        assert.equal(currGames.logs[0].event, 'AcceptingBoards', "Event of type AcceptingBoards did not fire.");
         assert.equal(currGames.logs[0].args[0], 4, "Event was emitted for the wrong gameID.");
-        assert.equal(currGames.logs[0].args[1], accounts[6], "Event was emitted for the wrong host.");
-        assert.equal(currGames.logs[0].args[2], accounts[4], "Event was emitted for the wrong challenger.");
       });
       it("Game #4 should have account[4] as second player.", async () => {
         const currGames = await battleships.checkGamePlayer(4, 1);
         assert.equal(currGames, accounts[4], "Wrong second address for game #4.")
       });
-      it("Game #4 should be in 'setting stake' state.", async () => {
+      it("Game #4 should be in 'PLACING_SHIPS' state.", async () => {
         const currGames = await battleships.checkGameState(4);
-        assert.equal(currGames, Battleships.GameStates.SETTING_STAKE, "Wrong state for game #4.")
+        assert.equal(currGames, Battleships.GameStates.PLACING_SHIPS, "Wrong state for game #4.")
       });
       // finally, try joining the private game
       it("Joining private game with ID #3 on accounts[4].", async () => {
         const currGames = await battleships.joinGame(3, {from: accounts[4]});
         // catch the emitted start game event
-        assert.equal(currGames.logs[0].event, 'GameStart', "Event of type GameStart did not fire.");
+        assert.equal(currGames.logs[0].event, 'AcceptingBoards', "Event of type AcceptingBoards did not fire.");
         assert.equal(currGames.logs[0].args[0], 3, "Event was emitted for the wrong gameID.");
-        assert.equal(currGames.logs[0].args[1], accounts[3], "Event was emitted for the wrong host.");
-        assert.equal(currGames.logs[0].args[2], accounts[4], "Event was emitted for the wrong challenger.");
       });
       it("Game #3 should have account[4] as second player.", async () => {
         const currGames = await battleships.checkGamePlayer(3, 1);
         assert.equal(currGames, accounts[4], "Wrong second address for game #3.")
       });
-      it("Game #3 should be in 'setting stake' state.", async () => {
+      it("Game #3 should be in 'PLACING_SHIPS' state.", async () => {
         const currGames = await battleships.checkGameState(3);
-        assert.equal(currGames, Battleships.GameStates.SETTING_STAKE, "Wrong state for game #3.")
+        assert.equal(currGames, Battleships.GameStates.PLACING_SHIPS, "Wrong state for game #3.")
       });
     });
 });

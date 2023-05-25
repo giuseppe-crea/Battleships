@@ -6,10 +6,6 @@ contract("Battleships", function (accounts) {
         battleships = await Battleships.deployed();
         await battleships.newGame(false, {from: accounts[0]});
         await battleships.joinGame(1, {from: accounts[1]});
-        await battleships.proposeStake(1, 5000);
-        await battleships.proposeStake(1, 5000, {from: accounts[1]});
-        await battleships.payStake(1, {value: 5000});
-        await battleships.payStake(1, {from: accounts[1], value: 5000});
         const reply = await battleships.checkGameState(1);
         assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Failed Setup");
     });
@@ -31,15 +27,15 @@ contract("Battleships", function (accounts) {
             assert.equal(three.logs[0].event, 'BoardAcknowledgeEvent', "Event of type SuggestedStake did not fire.");
             assert.equal(three.logs[0].args[0], 1, "Event was emitted for the wrong gameID.");
             assert.equal(three.logs[0].args[1], accounts[1], "Event was emitted for the wrong from.");
-            assert.equal(three.logs[1].event, 'PlayerZeroTurn', "Event of type PlayerZeroTurn did not fire.");
+            assert.equal(three.logs[1].event, 'GameStart', "Event of type GameStart did not fire.");
             const six = await battleships.checkGameState(1);
-            assert.equal(six, Battleships.GameStates.P0_FIRING, "State machine failure.");
+            assert.equal(six, Battleships.GameStates.SETTING_STAKE, "State machine failure.");
         });
     });
     describe("Negative Placement tests.", async () =>{
         it("Make sure we are in state 4.", async () =>{
             const six = await battleships.checkGameState(1);
-            assert.equal(six, Battleships.GameStates.P0_FIRING, "State machine failure.");
+            assert.equal(six, Battleships.GameStates.SETTING_STAKE, "State machine failure.");
         });
         it("Try pushing a new board as p0.", async () =>{
             var errored = false;
@@ -64,10 +60,6 @@ contract("Battleships", function (accounts) {
         it("Creating a new game (ID = 2).", async () =>{
             await battleships.newGame(false, {from: accounts[0]});
             await battleships.joinGame(2, {from: accounts[1]});
-            await battleships.proposeStake(2, 5000);
-            await battleships.proposeStake(2, 5000, {from: accounts[1]});
-            await battleships.payStake(2, {value: 5000});
-            await battleships.payStake(2, {from: accounts[1], value: 5000});
             const reply = await battleships.checkGameState(2);
             assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Failed Setup");
         });
@@ -86,10 +78,6 @@ contract("Battleships", function (accounts) {
         it("Creating a new game (ID = 3).", async () =>{
             await battleships.newGame(false, {from: accounts[0]});
             await battleships.joinGame(3, {from: accounts[1]});
-            await battleships.proposeStake(3, 5000);
-            await battleships.proposeStake(3, 5000, {from: accounts[1]});
-            await battleships.payStake(3, {value: 5000});
-            await battleships.payStake(3, {from: accounts[1], value: 5000});
             const reply = await battleships.checkGameState(3);
             assert.equal(reply, Battleships.GameStates.PLACING_SHIPS, "Failed Setup");
         });

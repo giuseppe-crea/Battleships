@@ -85,12 +85,12 @@ contract("Battleships", function (accounts) {
         battleships = await Battleships.deployed();
         await battleships.newGame(false, {from: accounts[0]});
         await battleships.joinGame(1, {from: accounts[1]});
+        await battleships.PlaceShips(1, p0_board);
+        await battleships.PlaceShips(1, p1_board, {from: accounts[1]});
         await battleships.proposeStake(1, 5000);
         await battleships.proposeStake(1, 5000, {from: accounts[1]});
         await battleships.payStake(1, {value: 5000});
         await battleships.payStake(1, {from: accounts[1], value: 5000});
-        await battleships.PlaceShips(1, p0_board);
-        await battleships.PlaceShips(1, p1_board, {from: accounts[1]});
         // a bit of cheating
         await battleships.ChangeState(1, Battleships.GameStates.CHECKING_WINNER);
         await battleships.SetWinner(1, accounts[0]);

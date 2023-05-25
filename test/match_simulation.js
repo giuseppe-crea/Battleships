@@ -80,12 +80,12 @@ contract("Battleships", function (accounts) {
         battleships = await Battleships.deployed();
         await battleships.newGame(false, {from: accounts[0]});
         await battleships.joinGame(1, {from: accounts[1]});
+        await battleships.PlaceShips(1, board_root[0]);
+        await battleships.PlaceShips(1, board_root[1], {from: accounts[1]});
         await battleships.proposeStake(1, stakeValue);
         await battleships.proposeStake(1, stakeValue, {from: accounts[1]});
         await battleships.payStake(1, {value: stakeValue});
         await battleships.payStake(1, {from: accounts[1], value: stakeValue});
-        await battleships.PlaceShips(1, board_root[0]);
-        await battleships.PlaceShips(1, board_root[1], {from: accounts[1]});
     });
     describe("Let's try looping between send and check until one of the two players wins!", async () =>{
         it("Playing the game...", async () =>{
