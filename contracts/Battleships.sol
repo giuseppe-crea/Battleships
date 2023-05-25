@@ -454,6 +454,7 @@ contract Battleships {
      gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING)
     */
     function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof) public {
+        // we assert manually rather than with modifiers to avoid a stack-too-deep error
         assert(openGames[gameID].valid);
         assert(location < (BOARD_SIZE*BOARD_SIZE));
         if(openGames[gameID].players[0].playerAddress == msg.sender){
@@ -464,8 +465,6 @@ contract Battleships {
             assert(false);
         }
         uint[2] memory indexes = getIndexSender(gameID);
-        // This very time consuming copy is needed because apparently using gameID directly causes a stack-too-deep issue.
-        // Game memory tmpGame = openGames[gameID];
         // make sure this node corresponds to the board tile and truth value we are checking
         assert(leaf == GenLeafNode(location, isHit));
         // execute the proof test
