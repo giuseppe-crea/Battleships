@@ -407,9 +407,7 @@ contract Battleships {
             emit ShotsFired(gameID, location);
         }
     }
-    /*
-     gameExists(gameID) isInGame(gameID) shotOnBoard(location) assertState(gameID, GameStates.P0_CHECKING)
-    */
+
     function ConfirmShot(uint gameID, uint8 location, bool isHit, bytes32 leaf, bytes32[] calldata proof) public {
         // we assert manually rather than with modifiers to avoid a stack-too-deep error
         assert(openGames[gameID].valid);
@@ -521,8 +519,6 @@ contract Battleships {
         require(success);
     }
 
-    // TODO: Unit test everything below this
-
     // a player can accuse another player of being afk if they don't act within X blocks
     // for this to happen, the state has to be one they don't control
     function FoulAccusation(uint gameID) gameExists(gameID) public {
@@ -577,15 +573,12 @@ contract Battleships {
     }
 
     // Assortment of debug functions
-    // These functions HAVE to be removed before final deployment
-    // the only reason they don't have an owner only modifier or inner assertion to the same effect is that we are ENTIRELY out of room
-    // this is as fat as the compiled contract can ever be
+    // Despite the name, this function also sets the winner to a given address
+    // the main use for it is testing endgame stages of the contract without having to manually play a game
 
-    function ChangeState(uint gameID, GameStates state) public {
+    function ChangeState(uint gameID, GameStates state, address winner) public {
+        assert(msg.sender == owner);
         openGames[gameID].state = state;
-    }
-
-    function SetWinner(uint gameID, address winner) public {
         openGames[gameID].winner = winner;
     }
 }

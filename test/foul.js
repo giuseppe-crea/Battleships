@@ -192,8 +192,7 @@ contract("Battleships", function (accounts) {
             p2 = 0;
             await battleships.payStake(gameID, {value: stakeValue});
             await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
-            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER);
-            await battleships.SetWinner(gameID, accounts[p2]);
+            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER, accounts[p2]);
             const one = await battleships.checkGameState(gameID);
             assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
         })
@@ -202,8 +201,7 @@ contract("Battleships", function (accounts) {
             p2 = 1;
             await battleships.payStake(gameID, {value: stakeValue});
             await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
-            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER);
-            await battleships.SetWinner(gameID, accounts[p2]);
+            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER, accounts[p2]);
             const one = await battleships.checkGameState(gameID);
             assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
         })
@@ -368,8 +366,7 @@ contract("Battleships", function (accounts) {
             p2 = 0;
             await battleships.payStake(gameID, {value: stakeValue});
             await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
-            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER);
-            await battleships.SetWinner(gameID, accounts[p2]);
+            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER, accounts[p2]);
             const one = await battleships.checkGameState(gameID);
             assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
             // trigger foul
@@ -403,8 +400,7 @@ contract("Battleships", function (accounts) {
             p2 = 0;
             await battleships.payStake(gameID, {value: stakeValue});
             await battleships.payStake(gameID, {from: accounts[1], value: stakeValue});
-            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER);
-            await battleships.SetWinner(gameID, accounts[p2]);
+            await battleships.ChangeState(gameID, Battleships.GameStates.CHECKING_WINNER, accounts[p2]);
             const one = await battleships.checkGameState(gameID);
             assert.equal(one, Battleships.GameStates.CHECKING_WINNER);
             // trigger foul

@@ -2,13 +2,25 @@
 
 ## Premise
 
-## Implementation Choices
+The aim of this project is the development of a distributed application which implements a version of the classic game "Battleships”.
+This project is comprised of 3 elements.
+1. The Contract code to be deployed on the Ethereum blockchain
+2. A web3 application which makes use of that contract
+3. A design doc (this file) for both contract and application.
 
 ### Game design decisions
 
 Games will be played on an 8x8 board with 20 ship tiles. These ships have no specific shape and can be placed anywhere on the board, but all 20 of them must be placed.
-Any 8x8 board with 20 ship tiles and 44 water tiles is considered valid.
-The first player to hit all his opponent’s ship tiles and subsequently prove the validity of their own board is declared the winner. If a player fails to prove their board was valid their opponent will be declared winner by default.
+Any 8x8 board with 20 ship tiles and 44 water tiles is considered valid. The amount of ships and water tiles can be tweaked in the contract before compiling and deploying it, and it would be trivial to implement it in such a way that each host could declare their own parameters, but it was not deemed necessary for the scope of this demo.
+The host player, the one who started the new game, always goes first.
+The first player to hit all his opponent’s ship tiles and subsequently prove the validity of their own board is declared the winner. If a player fails to prove their board was valid their opponent can accuse them of foul.
+To prevent AFK players from locking down funds a process has been implemented through which users can accuse the opponent of committing a "foul". Users can only start this process while they are not in control of the state of the game, and their opponent can only clear this accusation by advancing the game into the next legal state. If the accusation has not been cleared after five (configurable at deployment time) blocks have been mined the contract's state is advanced to the very end, setting the accuser as winner and allowing them to retrieve any deposited funds, provided they did not cheat.
+
+## Implementation Choices
+
+The contract code was written in Solidity using the Truffle Suite. 
+The web3 app consists of a single html page implementing javascript code from the web3 node module.
+
 
 ### State Machine
 
