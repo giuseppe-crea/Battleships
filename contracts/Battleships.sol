@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
+// Disable optimizer
 pragma solidity >=0.4.22 <0.9.0;
+
+import { Merkle } from "./Merkle.sol";
 
 contract Battleships {
     uint8 public constant NUMBER_OF_SHIP_SQUARES = 20;
@@ -161,48 +164,6 @@ contract Battleships {
         }
         return indexes;
     }
-
-    // Code from OpenZeppelin's project
-    // https://github.com/OpenZeppelin
-    function verifyCalldata(
-    bytes32[] calldata proof,
-    bytes32 root,
-    bytes32 leaf
-    ) internal pure returns (bool) {
-        return processProofCalldata(proof, leaf) == root;
-    }
-
-    function processProofCalldata(
-        bytes32[] calldata proof,
-        bytes32 leaf
-    ) internal pure returns (bytes32) {
-        bytes32 computedHash = leaf;
-        for (uint256 i = 0; i < proof.length; i++) {
-            computedHash = _hashPair(computedHash, proof[i]);
-        }
-        return computedHash;
-    }
-
-    function _hashPair(bytes32 a, bytes32 b)
-        private
-        pure
-        returns(bytes32)
-    {
-        return a < b ? _efficientHash(a, b) : _efficientHash(b, a);
-    }
-
-    function _efficientHash(bytes32 a, bytes32 b)
-        private
-        pure
-        returns (bytes32 value)
-    {
-        assembly {
-            mstore(0x00, a)
-            mstore(0x20, b)
-            value := keccak256(0x00, 0x40)
-        }
-    }
-    // end of OpenZeppelin code
 
     // create a Game value, add it to openGames, populate the Player[0]
     function newGame(bool isPrivate) public {
@@ -423,7 +384,7 @@ contract Battleships {
         // make sure this node corresponds to the board tile and truth value we are checking
         assert(leaf == GenLeafNode(location, isHit));
         // execute the proof test
-        if(verifyCalldata(proof, openGames[gameID].players[indexes[0]].boardTreeRoot, leaf)){
+        if(Merkle.verifyCalldata(proof, openGames[gameID].players[indexes[0]].boardTreeRoot, leaf)){
             // if we got this far it means the reply is valid
             // let's clear any potential fouls for this user
             ClearFoul(gameID);
@@ -502,7 +463,7 @@ contract Battleships {
             if(ships[i])
                 shipsTotal++;
             assert(nodes[i] == GenLeafNode(tiles[i], ships[i]));
-            assert(verifyCalldata(proofs[i], root, nodes[i]));
+            assert(Merkle.verifyCalldata(proofs[i], root, nodes[i]));
         }
         assert(shipsTotal == NUMBER_OF_SHIP_SQUARES);
         // we don't use a conditional branch to alert the other player, as a Foul has already been triggered.
@@ -575,10 +536,11 @@ contract Battleships {
     // Assortment of debug functions
     // Despite the name, this function also sets the winner to a given address
     // the main use for it is testing endgame stages of the contract without having to manually play a game
-
+    
     function ChangeState(uint gameID, GameStates state, address winner) public {
         assert(msg.sender == owner);
         openGames[gameID].state = state;
         openGames[gameID].winner = winner;
     }
+    
 }
