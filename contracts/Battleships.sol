@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Disable optimizer
 pragma solidity >=0.4.22 <0.9.0;
 
 import { Merkle } from "./Merkle.sol";
@@ -69,7 +68,7 @@ contract Battleships {
     // used in generating UUIDs for the games
     // for now we are gonna use this as-is
     // start at 1 as 0 is used for a non-existing game
-    // TODO: deal with it overflowing
+    // we just don't deal with it overflowing because it's realistically impossible
     uint private gameCounter;
     uint private lastOpenGame;
     uint8 private foulBlockLen;
