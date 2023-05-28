@@ -1,5 +1,8 @@
 var ships_placed = 0; // global variable to keep track of the number of ships placed
-
+// global boolean array to keep track of the player's placed ships, 64 positions, initially all false
+var ships = new Array(64).fill(false);
+// global boolean array to keep track of the player's hits, 64 positions, initially all false
+var hits = new Array(64).fill(false); 
 // Create the first grid dynamically
 // get the html element 'your-grid' by id and assign it to a variable
 var grid1 = document.getElementById("your-grid");
@@ -15,15 +18,10 @@ grids.forEach(element => {
                 tile.style.pointerEvents = "none";
                 // write the numbers '1' to '8'in the first column
                 if (j === 0 && i >= 0) {
-                    // text should be centered both vertically and horizontally
-                    tile.style.textAlign = "center";
-                    tile.style.verticalAlign = "middle";
                     tile.innerHTML = 8-i;
                 }
                 // write the letter 'A' to 'H' in the last row
                 if (i === 8 && j > 0) {
-                    tile.style.textAlign = "center";
-                    tile.style.verticalAlign = "middle";
                     tile.innerHTML = String.fromCharCode(64 + j);
                 }
           } else {
@@ -47,6 +45,7 @@ function handleClick(event) {
     // change the tile's color to grey if it's in the first grid, red if it's in the second grid
     if (grid.id === "your-grid" && ships_placed < 20) {
         event.target.style.backgroundColor = "grey";
+        ships[index] = true; // set the corresponding position in the ships array to true
         // also increment the global counter 'ships_placed' by one
         ships_placed++;
     } else if (grid.id === "opponent-grid"){
@@ -63,4 +62,14 @@ function handleClick(event) {
     // Perform any desired actions with the clicked tile
     console.log("Clicked tile in grid: " + grid.id);
     console.log("Clicked tile index: " + index);
+}
+
+// find the 'print-game-state' button and add an event listener to it
+var printGameStateButton = document.getElementById("print-game-state-btn");
+printGameStateButton.addEventListener("click", printGameState);
+
+function printGameState() {
+    console.log("Ships placed: " + ships_placed);
+    console.log("Ships: " + ships);
+    console.log("Hits: " + hits);
 }

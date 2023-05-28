@@ -15,12 +15,13 @@ h1 {
   border: 1px solid #ccc;
   padding: 5px;
   margin-bottom: 20px;
-  width: 464px;
+  width: 462px;
 }
 
 .tile {
   width: 100%;
   height: 100%;
+  border: 1px solid #ddd;
   background-color: #b3d9ff;
   box-sizing: border-box;
 }
@@ -28,13 +29,16 @@ h1 {
 .tile-label {
   width: 100%;
   height: 100%;
+  text-align: center;
+  vertical-align: middle;
+  padding-top: 25%;
   background-color: transparent;
   box-sizing: border-box;
+  border: transparent;
 }
 
 
 .grid div {
-  border: 1px solid #ddd;
   cursor: pointer;
 }
 
