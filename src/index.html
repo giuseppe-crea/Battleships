@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battleships Game</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Battleships Game</h1>
+    <div class="row">
+      <div class="col-md-6">
+        <h2>Your Play Area</h2>
+        <div class="grid" id="your-grid">
+          <!-- Your play area grid goes here -->
+        </div>
+      </div>
+      <div class="col-md-6">
+        <h2>Opponent's Play Area</h2>
+        <div class="grid" id="opponent-grid">
+          <!-- Opponent's play area grid goes here -->
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="container">
+        <div class="row">
+          <div class="col align-self-start">
+            <button class="btn btn-primary" id="new-game-btn">New Game</button>
+            <button class="btn btn-primary" id="join-game-btn">Join Game</button>
+            <input type="number" id="game-id-input" class="form-control" placeholder="Game ID">
+          </div>
+          <div class="col align-self-end">
+            <button class="btn btn-primary" id="propose-stake-btn">Propose Stake</button>
+            
+            <input type="number" id="stake-value-input" class="form-control" placeholder="Proposed Stake">
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <button class="btn btn-danger" id="foul-btn">Declare Foul</button>
+        <button class="btn btn-primary" id="claim-winnings-btn">Claim Winnings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script src="js/web3.min.js"></script>
+  <script src="js/truffle-contract.js"></script>
+</body>
+
+</html>
