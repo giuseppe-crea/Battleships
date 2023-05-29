@@ -1,3 +1,5 @@
+// global variable to store the id of our currently joined game
+var currGameID = 0;
 var ships_placed = 0; // global variable to keep track of the number of ships placed
 // global boolean array to keep track of the player's placed ships, 64 positions, initially all false
 var ships = new Array(64).fill(false);
@@ -37,9 +39,13 @@ grids.forEach(element => {
 function disableGrid(element) {
     element.style.filter = "blur(5px)";
     element.style.pointerEvents = "none";
+    // disable the reset-board-button
+    var resetBoardButton = document.getElementById("reset-board-btn");
+    resetBoardButton.disabled = true;
 }
 
 // grid2 starts out disabled, we enable it after the send-grid phase of the game
+disableGrid(grid1);
 disableGrid(grid2);
 
 // remove the blur from a grid and enable it
@@ -48,6 +54,8 @@ function enableGrid(element) {
     element.style.transition = "filter 0.3s ease-in-out";
     element.style.filter = "blur(0px)";
     element.style.pointerEvents = "auto";
+    var resetBoardButton = document.getElementById("reset-board-btn");
+    resetBoardButton.enabled = true;
 }
 
 function resetBoard() {
@@ -104,6 +112,7 @@ function printGameState() {
     console.log("Ships placed: " + ships_placed);
     console.log("Ships: " + ships);
     console.log("Hits: " + hits);
+    console.log("CurrGameID: " + currGameID);
 }
 
 // the actual web3 app
@@ -177,7 +186,7 @@ App = {
         App.contracts.Battleships.deployed().then(function(instance) {
             instance.ShareID({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if (!error) {
-                    // console.log(event);
+                    // we do nothing here. The player's board is enabled in the AcceptingBoards event
                 } else {
                     console.error('Error:', error);
                 }
@@ -212,7 +221,10 @@ App = {
             });
             instance.AcceptingBoards({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
-                    // console.log(event);
+                    // in this state we enable the player's board if and only if the argument is the player's address and the gameID is the one we're currently playing
+                    if(event.args._gameID.c[0] === currGameID) {
+                        enableGrid(grid1);
+                    }
                 } else {
                     console.error('Error:', error);
                 }
@@ -282,8 +294,7 @@ App = {
                 return battleshipsInstance.newGame(isPrivate, {from: account});
             }).then(function(result) {
                 // this is how deep we must go to actually get the gameID
-                console.log(result.logs[0].args._gameID.c[0]);
-                // we need to handle the ShareID event outside this function
+                currGameID = parseInt(result.logs[0].args._gameID.c[0]);
                 return;
             }).catch(function(err) {
                 console.log(err.message);
@@ -311,6 +322,8 @@ App = {
             }).then(function(result) {
                 // this is how deep we must go to actually get the gameID
                 console.log(result);
+                // set currGameID to the gameID we just joined
+                currGameID = parseInt(result.logs[0].args._gameID.c[0]);
                 // we need to handle the ShareID event outside this function
                 return;
             }).catch(function(err) {
