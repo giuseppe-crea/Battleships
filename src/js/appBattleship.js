@@ -165,15 +165,102 @@ App = {
         // bind the click event on tiles in the first grid to the handleTileClick function
         $(document).on('click', '#your-grid .tile', App.playerGridClick);
         $(document).on('click', '#new-public-game-btn', function() {
-            App.newGame(true);
-        });
-        $(document).on('click', '#new-private-game-btn', function() {
             App.newGame(false);
         });
-        // Listen for "TestEvent"
+        $(document).on('click', '#new-private-game-btn', function() {
+            App.newGame(true);
+        });
+        $(document).on('click', '#join-game-btn', function() {
+            App.joinGame();
+        });
+        // Listen for all events emitted by the contract
         App.contracts.Battleships.deployed().then(function(instance) {
-            instance.ShareID({}, { fromBlock: 0, toBlock: 'latest' }).watch(function(error, event) {
+            instance.ShareID({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if (!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.GameStart({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.SuggestedStake({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.GamePayable({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.StakePaid({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.AcceptingBoards({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.BoardAcknowledgeEvent({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.PlayerZeroTurn({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.ShotsFired({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.ShotsChecked({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.RequestBoard({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.Victory({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
+                    // console.log(event);
+                } else {
+                    console.error('Error:', error);
+                }
+            });
+            instance.Foul({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
+                if(!error) {
                     // console.log(event);
                 } else {
                     console.error('Error:', error);
@@ -182,12 +269,52 @@ App = {
         });
     },
 
-    newGame: function(isPublic) {
-        App.contracts.Battleships.deployed().then(function(instance) {
-            instance.newGame(isPublic, { from: web3.eth.accounts[0]}).then(function(tx) {
-                console.log(tx);
-            }).catch(function(error) {
-                console.error(error);
+    newGame: function(isPrivate) {
+        // call the newGame function in the contract
+        var battleshipsInstance;
+        web3.eth.getAccounts(function(error, accounts) {
+            if (error) {
+                console.log(error);
+            }
+            var account = accounts[0];
+            App.contracts.Battleships.deployed().then(function(instance) {
+                battleshipsInstance = instance;
+                return battleshipsInstance.newGame(isPrivate, {from: account});
+            }).then(function(result) {
+                // this is how deep we must go to actually get the gameID
+                console.log(result.logs[0].args._gameID.c[0]);
+                // we need to handle the ShareID event outside this function
+                return;
+            }).catch(function(err) {
+                console.log(err.message);
+            });
+        });
+    },
+
+    joinGame: function() {
+        // get number from input field
+        target = document.getElementById("game-id-input");
+        var gameID = parseInt(target.value);
+        if(isNaN(gameID)) { 
+            gameID = parseInt(0);
+        }
+        console.log(gameID);
+        var battleshipsInstance;
+        web3.eth.getAccounts(function(error, accounts) {
+            if (error) {
+                console.log(error);
+            }
+            var account = accounts[0];
+            App.contracts.Battleships.deployed().then(function(instance) {
+                battleshipsInstance = instance;
+                return battleshipsInstance.joinGame(gameID, {from: account});
+            }).then(function(result) {
+                // this is how deep we must go to actually get the gameID
+                console.log(result);
+                // we need to handle the ShareID event outside this function
+                return;
+            }).catch(function(err) {
+                console.log(err.message);
             });
         });
     },

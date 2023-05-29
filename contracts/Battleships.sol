@@ -96,6 +96,7 @@ contract Battleships {
     event Victory(uint _gameID, address _winner);
     event Foul(uint _gameID, address _accused, uint _block);
 
+    error NoOpenGames();
     error InvalidGameID();
     error NotInGame();
     error StakeAlreadyDeposited();
@@ -187,7 +188,7 @@ contract Battleships {
         if(gameID == 0){
             // pick an unassigned game in sequential order
             gameID = lastOpenGame;
-            while(gameID <= gameCounter){
+            while (gameID < gameCounter){
                 // ignore games with sender as host (you can still join your own games directly if you're that lonely)
                 if(openGames[gameID].valid == true && 
                     openGames[gameID].state == GameStates.WAITING && 
@@ -197,11 +198,13 @@ contract Battleships {
                 }
                 gameID++;
             }
-            // update the lastOpenGame counter no matter what
-            lastOpenGame = gameID;
         }
         // if the game wasn't valid, throw an error
-        assert(openGames[gameID].valid);
+        if(!openGames[gameID].valid)
+            revert NoOpenGames();
+
+        // update the lastOpenGame counter no matter what
+        lastOpenGame = gameID + 1;
         // set msg sender as this game's player 2
         Player storage challenger = playerTrampoline;
         challenger.playerAddress = msg.sender;
