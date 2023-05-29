@@ -8,9 +8,9 @@ contract Battleships {
     uint8 public constant BOARD_SIZE = 8;
     enum GameStates{
         WAITING, 
+        PLACING_SHIPS, 
         SETTING_STAKE, 
         ACCEPTING_PAYMENT,
-        PLACING_SHIPS, 
         P0_FIRING,
         P1_CHECKING,
         P1_FIRING,
@@ -202,6 +202,8 @@ contract Battleships {
         // if the game wasn't valid, throw an error
         if(!openGames[gameID].valid)
             revert NoOpenGames();
+
+        assert(openGames[gameID].state == GameStates.WAITING);
 
         // update the lastOpenGame counter no matter what
         lastOpenGame = gameID + 1;
