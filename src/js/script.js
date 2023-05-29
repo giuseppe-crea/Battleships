@@ -60,8 +60,8 @@ function handleClick(event) {
     }
 
     // Perform any desired actions with the clicked tile
-    console.log("Clicked tile in grid: " + grid.id);
-    console.log("Clicked tile index: " + index);
+    //console.log("Hesay: Clicked tile in grid: " + grid.id);
+    //console.log("Hesay: Clicked tile index: " + index);
 }
 
 // find the 'print-game-state' button and add an event listener to it
