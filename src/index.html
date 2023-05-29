@@ -31,13 +31,15 @@
       <div class="container">
         <div class="row">
           <div class="col align-self-start">
-            <button class="btn btn-primary" id="new-game-btn">New Game</button>
+            <button class="btn btn-primary" id="new-public-game-btn">New Public Game</button>
+            <button class="btn btn-primary" id="new-private-game-btn">New Private Game</button>
             <button class="btn btn-primary" id="join-game-btn">Join Game</button>
             <input type="number" id="game-id-input" class="form-control" placeholder="Game ID">
           </div>
           <div class="col align-self-end">
             <button class="btn btn-primary" id="propose-stake-btn">Propose Stake</button>
-            
+            <button class="btn btn-primary" id="reset-board-btn">Reset Board</button>
+            <button class="btn btn-primary" id="submit-board-btn">Submit Board</button>
             <input type="number" id="stake-value-input" class="form-control" placeholder="Proposed Stake">
           </div>
         </div>
@@ -51,7 +53,7 @@
   </div>
   <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-  <script src="js/battleshipapp.js"></script>
+  <script src="js/appBattleship.js"></script>
   <script src="js/bootstrap.min.js"></script>
   <script src="js/web3.min.js"></script>
   <script src="js/truffle-contract.js"></script>
