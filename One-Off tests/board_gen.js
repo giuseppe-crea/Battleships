@@ -4,23 +4,6 @@ const Web3 = require("web3");
 
 const web3 = new Web3();
 
-let board = [
-    {
-        tile: "12",
-        ship: web3.eth.abi.encodeParameter(
-            "bool",
-            "false"
-        )
-    },
-    {
-        tile: "24",
-        ship: web3.eth.abi.encodeParameter(
-            "bool",
-            "true"
-        )
-    }
-];
-
 const leafNodes = board.map((_board) =>
     keccak256(
         Buffer.concat([
