@@ -1,78 +1,98 @@
-// global variable to store the id of our currently joined game
-var currGameID = 0;
-var areWeHost = false;
-var ships_placed = 0; // global variable to keep track of the number of ships placed
-var currGameState; // global variable to keep track of the current game state as described in the contract
-// global boolean array to keep track of the player's placed ships, 64 positions, initially all false
-var ships = new Array(64).fill(false);
-// global boolean array to keep track of the player's hits, 64 positions, initially all false
-var hits = new Array(64).fill(false);
-var grid1 = document.getElementById("your-grid");
-var grid2 = document.getElementById("opponent-grid");
-var grids = [grid1, grid2];
+App = {
+    web3Provider: null,
+    contracts: {},
+    currentBlockNumber: 0,
+    initialBlockNumber: 0,
 
-// remainder from when we had a reset board button
-const stateControlFunctions = {
-    resetBoard: function() {
-        // Set every tile on the player's board to its default state and make them clickable again
-        var tiles = document.querySelectorAll("#your-grid .tile");
-        for (var i = 0; i < tiles.length; i++) {
-            tiles[i].style.pointerEvents = "auto";
-            // set the background color to the same one found in the .tile class
-            tiles[i].style = getComputedStyle(tiles[i]);
-            // re-enable the tile
-            tiles[i].enabled = true;
+    // global variable to store the id of our currently joined game
+    currGameID: 0,
+    areWeHost: false,
+    ships_placed: 0, // global variable to keep track of the number of ships placed
+    currGameState: 0, // global variable to keep track of the current game state as described in the contract
+    // global boolean array to keep track of the player's placed ships, 64 positions, initially all false
+    ships: new Array(64).fill(false),
+    // global boolean array to keep track of the player's hits, 64 positions, initially all false
+    hits: new Array(64).fill(false),
+    grid1: document.getElementById("your-grid"),
+    grid2: document.getElementById("opponent-grid"),
+    // remainder from when we had a reset board button
+    stateControlFunctions: {
+        resetBoard: function() {
+            // Set every tile on the player's board to its default state and make them clickable again
+            var tiles = document.querySelectorAll("#your-grid .tile");
+            for (var i = 0; i < tiles.length; i++) {
+                tiles[i].style.pointerEvents = "auto";
+                // set the background color to the same one found in the .tile class
+                tiles[i].style = getComputedStyle(tiles[i]);
+                // re-enable the tile
+                tiles[i].enabled = true;
+            }
+            // reset the global variables
+            App.ships_placed = 0;
+            App.ships = new Array(64).fill(false);
+        },
+
+        resetGlobals: function() {
+            // reset the global variables
+            App.ships_placed = 0;
+            App.ships = new Array(64).fill(false);
+            App.hits = new Array(64).fill(false);
+            App.currGameID = 0;
+            App.areWeHost = false;
+            App.currGameState = 0;
+            App.MerkleHelperFunctions.board = [];
+            App.MerkleHelperFunctions.leafNodes = [];
+            App.MerkleHelperFunctions.computedTree = null;
+            App.MerkleHelperFunctions.board_root = 0x0;
         }
-        // reset the global variables
-        ships_placed = 0;
-        ships = new Array(64).fill(false);
     },
 
-    resetGlobals: function() {
-        // reset the global variables
-        ships_placed = 0;
-        ships = new Array(64).fill(false);
-        hits = new Array(64).fill(false);
-        currGameID = 0;
-        areWeHost = false;
-        currGameState = 0;
-        MerkleHelperFunctions.board = [];
-        MerkleHelperFunctions.leafNodes = [];
-        MerkleHelperFunctions.computedTree = null;
-        MerkleHelperFunctions.board_root = 0x0;
-    }
-}
-
-const MerkleHelperFunctions = {
-    board: [],
-    leafNodes: [],
-    computedTree: null,
-    board_root: 0x0,
-    // function to generate the merkle trie from the ships array
-    generatePlayerBoard: function(bool_board){
-        // from the already filled board we generate the merkle trie
-        for(var i = 0; i < 64; i++){
-            // This implementation uses a random value for each node to ensure nobody can "guess" the whole board
-            var board_elem = {
-                tile: i,
-                ship: bool_board[i]
+    MerkleHelperFunctions: {
+        board: [],
+        leafNodes: [],
+        computedTree: null,
+        board_root: 0x0,
+        // function to generate the merkle trie from the ships array
+        generatePlayerBoard: function(bool_board){
+            // from the already filled board we generate the merkle trie
+            for(var i = 0; i < 64; i++){
+                // This implementation uses a random value for each node to ensure nobody can "guess" the whole board
+                var board_elem = {
+                    tile: i,
+                    ship: bool_board[i]
+                }
+                App.MerkleHelperFunctions.board.push(board_elem);
             }
-            this.board.push(board_elem);
+            App.MerkleHelperFunctions.leafNodes = this.board.map((_board) => 
+                App.web3.utils.keccak256(App.web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
+            );
+            App.MerkleHelperFunctions.computedTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
+            App.MerkleHelperFunctions.board_root = computedTree.getHexRoot();
         }
-        this.leafNodes = this.board.map((_board) => 
-            App.web3.utils.keccak256(App.web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
-        );
-        this.computedTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
-        this.board_root = computedTree.getHexRoot();
-    }
-}
+    },
 
-const UIcontrolFunctions = {
-    
-    populateGrids: function() {
-        // Create the first grid dynamically
-        // get the html element 'your-grid' by id and assign it to a variable
-        grids.forEach(element => {
+    UIcontrolFunctions: {
+
+        printGameState: function() {
+            console.log("Ships placed: " + App.ships_placed);
+            console.log("Ships: " + App.ships);
+            console.log("Hits: " + App.hits);
+            console.log("App.currGameID: " + App.currGameID);
+            console.log("App.currGameState: " + App.currGameState);
+            console.log("Our address: " + web3.eth.accounts[0]);  
+        },
+
+        createDebugButton: function() {
+            // debug button
+            printGameStateButton = document.getElementById("print-game-state-btn");
+            printGameStateButton.addEventListener("click", App.UIcontrolFunctions.printGameState);
+            // and its associated function
+            
+        },
+
+        populateGrids: function(element) {
+            // Create the first grid dynamically
+            // get the html element 'your-grid' by id and assign it to a variable
             for (var i = 0; i < 9; i++) {
                 for (var j = 0; j < 9; j++) {
                     var tile = document.createElement("div");
@@ -91,320 +111,297 @@ const UIcontrolFunctions = {
                     } else {
                         tile.className = "tile";
                         tile.dataset.index = i * 8 + j - 1; // Assigning a unique index to each tile
-                        tile.addEventListener("click", handleClick);
+                        tile.addEventListener("click", App.handleClick);
                     }
                     element.appendChild(tile);
                 }
             }
-        });
-    },
+        },
 
-    disableGrid: function(element) {
-        element.style.filter = "blur(5px)";
-        element.style.pointerEvents = "none";    
-    },
+        disableGrid: function(element) {
+            element.style.filter = "blur(5px)";
+            element.style.pointerEvents = "none";    
+        },
 
-    // create functions to enable and disable each component of the app
+        // create functions to enable and disable each component of the app
 
-    enableAbandonGameButton: function() {
-        var abandonGameButton = document.getElementById("abandon-game-btn");
-        abandonGameButton.disabled = false;
-    },
+        enableAbandonGameButton: function() {
+            var abandonGameButton = document.getElementById("abandon-game-btn");
+            abandonGameButton.disabled = false;
+        },
 
-    disableAbandonGameButton: function() {
-        var abandonGameButton = document.getElementById("abandon-game-btn");
-        abandonGameButton.disabled = true;
-    },
+        disableAbandonGameButton: function() {
+            var abandonGameButton = document.getElementById("abandon-game-btn");
+            abandonGameButton.disabled = true;
+        },
 
-    enableNewGameButtons: function() {
-        var newPublicGameButton = document.getElementById("new-public-game-btn");
-        var newPrivateGameButton = document.getElementById("new-private-game-btn");
-        newPublicGameButton.disabled = false;
-        newPrivateGameButton.disabled = false;
-    },
+        enableNewGameButtons: function() {
+            var newPublicGameButton = document.getElementById("new-public-game-btn");
+            var newPrivateGameButton = document.getElementById("new-private-game-btn");
+            newPublicGameButton.disabled = false;
+            newPrivateGameButton.disabled = false;
+        },
 
-    disableNewGameButtons: function() {
-        var newPublicGameButton = document.getElementById("new-public-game-btn");
-        var newPrivateGameButton = document.getElementById("new-private-game-btn");
-        newPublicGameButton.disabled = true;
-        newPrivateGameButton.disabled = true;
-    },
+        disableNewGameButtons: function() {
+            var newPublicGameButton = document.getElementById("new-public-game-btn");
+            var newPrivateGameButton = document.getElementById("new-private-game-btn");
+            newPublicGameButton.disabled = true;
+            newPrivateGameButton.disabled = true;
+        },
 
-    enableSubmitBoardButton: function() {
-        var submitBoardButton = document.getElementById("submit-board-btn");
-        submitBoardButton.disabled = false;
-    },
+        enableSubmitBoardButton: function() {
+            var submitBoardButton = document.getElementById("submit-board-btn");
+            submitBoardButton.disabled = false;
+        },
 
-    disableSubmitBoardButton: function() {
-        var submitBoardButton = document.getElementById("submit-board-btn");
-        submitBoardButton.disabled = true;
-    },
+        disableSubmitBoardButton: function() {
+            var submitBoardButton = document.getElementById("submit-board-btn");
+            submitBoardButton.disabled = true;
+        },
 
-    enableClaimWinningsButton: function() {
-        var claimWinningsButton = document.getElementById("claim-winnings-btn");
-        claimWinningsButton.disabled = false;
-    },
+        enableClaimWinningsButton: function() {
+            var claimWinningsButton = document.getElementById("claim-winnings-btn");
+            claimWinningsButton.disabled = false;
+        },
 
-    disableClaimWinningsButton: function() {
-        var claimWinningsButton = document.getElementById("claim-winnings-btn");
-        claimWinningsButton.disabled = true;
-    },
+        disableClaimWinningsButton: function() {
+            var claimWinningsButton = document.getElementById("claim-winnings-btn");
+            claimWinningsButton.disabled = true;
+        },
 
-    enableDeclareFoulButton: function() {
-        var declareFoulButton = document.getElementById("declare-foul-btn");
-        declareFoulButton.disabled = false;
-    },
+        enableDeclareFoulButton: function() {
+            var declareFoulButton = document.getElementById("declare-foul-btn");
+            declareFoulButton.disabled = false;
+        },
 
-    disableDeclareFoulButton: function() {
-        var declareFoulButton = document.getElementById("declare-foul-btn");
-        declareFoulButton.disabled = true;
-    },
+        disableDeclareFoulButton: function() {
+            var declareFoulButton = document.getElementById("declare-foul-btn");
+            declareFoulButton.disabled = true;
+        },
 
-    enableProposeStakeButton: function() {
-        var proposeStakeButton = document.getElementById("propose-stake-btn");
-        proposeStakeButton.disabled = false;
-    },
+        enableProposeStakeButton: function() {
+            var proposeStakeButton = document.getElementById("propose-stake-btn");
+            proposeStakeButton.disabled = false;
+        },
 
-    disableProposeStakeButton: function() {
-        var proposeStakeButton = document.getElementById("propose-stake-btn");
-        proposeStakeButton.disabled = true;
-    },
+        disableProposeStakeButton: function() {
+            var proposeStakeButton = document.getElementById("propose-stake-btn");
+            proposeStakeButton.disabled = true;
+        },
 
-    enableStakeInput: function() {
-        var stakeInputField = document.getElementById("stake-value-input");
-        stakeInputField.disabled = false;
-    },
+        enableStakeInput: function() {
+            var stakeInputField = document.getElementById("stake-value-input");
+            stakeInputField.disabled = false;
+        },
 
-    disableStakeInput: function() {
-        var stakeInputField = document.getElementById("stake-value-input");
-        stakeInputField.disabled = true;
-    },
+        disableStakeInput: function() {
+            var stakeInputField = document.getElementById("stake-value-input");
+            stakeInputField.disabled = true;
+        },
 
-    enableJoinGameButton: function() {
-        var joinGameButton = document.getElementById("join-game-btn");
-        joinGameButton.disabled = false;
-    },
+        enableJoinGameButton: function() {
+            var joinGameButton = document.getElementById("join-game-btn");
+            joinGameButton.disabled = false;
+        },
 
-    disableJoinGameButton: function() {
-        var joinGameButton = document.getElementById("join-game-btn");
-        joinGameButton.disabled = true;
-    },
+        disableJoinGameButton: function() {
+            var joinGameButton = document.getElementById("join-game-btn");
+            joinGameButton.disabled = true;
+        },
 
-    enableGameIDInput: function() {
-        var stakeInputField = document.getElementById("game-id-input");
-        stakeInputField.disabled = false;
-    },
+        enableGameIDInput: function() {
+            var stakeInputField = document.getElementById("game-id-input");
+            stakeInputField.disabled = false;
+        },
 
-    disableGameIDInput: function() {
-        var gameIDInputField = document.getElementById("game-id-input");
-        gameIDInputField.disabled = true;
-    },
+        disableGameIDInput: function() {
+            var gameIDInputField = document.getElementById("game-id-input");
+            gameIDInputField.disabled = true;
+        },
 
-    enableResetBoardButton: function() {
-        var resetBoardButton = document.getElementById("reset-board-btn");
-        resetBoardButton.disabled = false;
-    },
+        enableResetBoardButton: function() {
+            var resetBoardButton = document.getElementById("reset-board-btn");
+            resetBoardButton.disabled = false;
+        },
 
-    disableResetBoardButton: function() {
-        var resetBoardButton = document.getElementById("reset-board-btn");
-        resetBoardButton.disabled = true;
-    },
+        disableResetBoardButton: function() {
+            var resetBoardButton = document.getElementById("reset-board-btn");
+            resetBoardButton.disabled = true;
+        },
 
-    enableGrid: function(element) {
-        element.style.transition = "filter 0.3s ease-in-out";
-        element.style.filter = "blur(0px)";
-        element.style.pointerEvents = "auto";
-    },
+        enableGrid: function(element) {
+            element.style.transition = "filter 0.3s ease-in-out";
+            element.style.filter = "blur(0px)";
+            element.style.pointerEvents = "auto";
+        },
 
-    // unlike disableGrid, this function only disables pointer events, without blurring
-    // it's used for the actual play phase of the game during which the user needs to see their own tiles
-    lockGrid: function(grid) {
-        grid.style.pointerEvents = "none";
-    },
+        // unlike disableGrid, this function only disables pointer events, without blurring
+        // it's used for the actual play phase of the game during which the user needs to see their own tiles
+        lockGrid: function(grid) {
+            grid.style.pointerEvents = "none";
+        },
 
-    unlockGrid: function(grid) {
-        grid.style.pointerEvents = "auto";
-    },
+        unlockGrid: function(grid) {
+            grid.style.pointerEvents = "auto";
+        },
 
-    initialGameUIState: function(){
-        UIcontrolFunctions.disableAbandonGameButton();
-        UIcontrolFunctions.disableGrid(grid1);
-        UIcontrolFunctions.disableGrid(grid2);
-        UIcontrolFunctions.disableSubmitBoardButton();
-        UIcontrolFunctions.disableClaimWinningsButton();
-        UIcontrolFunctions.disableDeclareFoulButton();
-        UIcontrolFunctions.disableProposeStakeButton();
-        UIcontrolFunctions.disableStakeInput();
-        UIcontrolFunctions.enableNewGameButtons();
-        UIcontrolFunctions.enableJoinGameButton();
-        UIcontrolFunctions.enableGameIDInput();
-    },
+        initialGameUIState: function(){
+            App.UIcontrolFunctions.disableAbandonGameButton();
+            App.UIcontrolFunctions.disableGrid(App.grid1);
+            App.UIcontrolFunctions.disableGrid(App.grid2);
+            App.UIcontrolFunctions.disableSubmitBoardButton();
+            App.UIcontrolFunctions.disableClaimWinningsButton();
+            App.UIcontrolFunctions.disableDeclareFoulButton();
+            App.UIcontrolFunctions.disableProposeStakeButton();
+            App.UIcontrolFunctions.disableStakeInput();
+            App.UIcontrolFunctions.enableNewGameButtons();
+            App.UIcontrolFunctions.enableJoinGameButton();
+            App.UIcontrolFunctions.enableGameIDInput();
+        },
 
-    joinedGameUIState: function() {
-        // obscure all join/new game buttons and the gameID input
-        UIcontrolFunctions.disableJoinGameButton();
-        UIcontrolFunctions.disableGameIDInput();
-        UIcontrolFunctions.disableNewGameButtons();
-        UIcontrolFunctions.enableAbandonGameButton();
-        // set the placeholder text of gameID input to the gameID we just joined
-        var gameIDInputField = document.getElementById("game-id-input");
-        gameIDInputField.value = currGameID;
-    },
+        joinedGameUIState: function() {
+            console.log("hello from joinedGameUIState");
+            // obscure all join/new game buttons and the gameID input
+            App.UIcontrolFunctions.disableJoinGameButton();
+            App.UIcontrolFunctions.disableGameIDInput();
+            App.UIcontrolFunctions.disableNewGameButtons();
+            App.UIcontrolFunctions.enableAbandonGameButton();
+            // set the placeholder text of gameID input to the gameID we just joined
+            var gameIDInputField = document.getElementById("game-id-input");
+            gameIDInputField.value = App.currGameID;
+        },
 
-    placingShipsUIState: function() {
-        UIcontrolFunctions.enableGrid(grid1);
-        // the activation of the submit board button is dealt with in the event listener for board tiles, as it's tied to the number of ships placed
-    },
+        placingShipsUIState: function() {
+            App.UIcontrolFunctions.enableGrid(grid1);
+            // the activation of the submit board button is dealt with in the event listener for board tiles, as it's tied to the number of ships placed
+        },
 
-    settingStakeUIState: function() {
-        UIcontrolFunctions.lockGrid(grid1);
-        UIcontrolFunctions.enableProposeStakeButton();
-        UIcontrolFunctions.enableStakeInput();
-    },
+        settingStakeUIState: function() {
+            App.UIcontrolFunctions.lockGrid(grid1);
+            App.UIcontrolFunctions.enableProposeStakeButton();
+            App.UIcontrolFunctions.enableStakeInput();
+        },
 
-    acceptingPaymentUIState: function() {
-        UIcontrolFunctions.disableProposeStakeButton();
-        UIcontrolFunctions.disableStakeInput();
-        // the actual payment is processed in the accept button of the popup box which appears when the stake is set, in the event listener for the GamePayable event
-        // ergo no "pay stake" button has to be enabled, or even exist
-    },
+        acceptingPaymentUIState: function() {
+            App.UIcontrolFunctions.disableProposeStakeButton();
+            App.UIcontrolFunctions.disableStakeInput();
+            // the actual payment is processed in the accept button of the popup box which appears when the stake is set, in the event listener for the GamePayable event
+            // ergo no "pay stake" button has to be enabled, or even exist
+        },
 
-    // we get to the main game loop, here all buttons 
-    p0FiringUIState: function() {
-        // player zero can click the grid, player one can't
-        // this is effectively pointless as the contract already enforces the state machine, but we like it neat
-        if(!areWeHost) {
-            UIcontrolFunctions.lockGrid(grid2);
-        } else{
-            UIcontrolFunctions.unlockGrid(grid2);
-        }
-    },
-
-    p1FiringUIState: function() {
-        if(areWeHost) {
-            UIcontrolFunctions.lockGrid(grid2);
-        } else{
-            UIcontrolFunctions.unlockGrid(grid2);
-        }
-    },
-
-    // nothing actually happens here yet, but we might want to add a "waiting for opponent" message
-    // the involved user won't have to manually input anything if using THIS client.
-    p0CheckingUIState: function() {
-    },
-
-    p1CheckingUIState: function() {
-    },
-
-    updateTile: function(grid, index, isHit) {
-        if(isHit){
-            grid.children[index].style.backgroundColor = 'red';
-            hits[index] = true;
-        } 
-        grid.children[index].innerHTML = 'X';
-        grid.children[index].style.fontWeight = 'bold';
-        grid.children[index].style.color = 'black';
-        grid.children[index].verticalAlign = 'middle';
-        grid.children[index].style.textAlign = 'center';
-        grid.children[index].style.fontSize = '30px';
-    },        
-
-    // this is mostly used during the phases of the game concerning the stake, we register callbacks which tie into the contract to confirm or refuse payments
-    createPopout: function(Title, Message, AcceptActionCallback, RefuseActionCallback, args, showCancel) {
-        // notify player of the stake proposal, do this via popup box
-        var modal = document.getElementById("myModal");
-        var acceptBtn = document.getElementById("acceptBtn");
-        var refuseBtn = document.getElementById("refuseBtn");
-        var title = document.getElementById("modal-title");
-        var message = document.getElementById("modal-message");
-        // set the title and message of the popup box
-        title.innerHTML = Title;
-        message.innerHTML = Message;
-        modal.style.display = "flex";
-        if(!showCancel) {
-            refuseBtn.style.display = "none";
-        } else {
-            refuseBtn.style.display = "flex";
-        }
-        acceptBtn.addEventListener("click", function() {
-            // Add your code here for the accept action
-            console.log("User clicked Accept");
-            if(AcceptActionCallback != null)
-                AcceptActionCallback(args);
-            closeModal();
-            return true;
-        });
-        refuseBtn.addEventListener("click", function() {
-            // Add your code here for the refuse action
-            console.log("User clicked Refuse");
-            if(RefuseActionCallback != null)
-                RefuseActionCallback(args);
-            closeModal();
-            return false;
-        });
-        function closeModal() {
-            modal.style.display = "none";
-        }
-        window.addEventListener("click", function(event) {
-            if (event.target == modal) {
-                event.preventDefault(); // Prevent closing the modal by clicking outside
+        // we get to the main game loop, here all buttons 
+        p0FiringUIState: function() {
+            // player zero can click the grid, player one can't
+            // this is effectively pointless as the contract already enforces the state machine, but we like it neat
+            if(!areWeHost) {
+                App.UIcontrolFunctions.lockGrid(grid2);
+            } else{
+                App.UIcontrolFunctions.unlockGrid(grid2);
             }
-        });
+        },
+
+        p1FiringUIState: function() {
+            if(areWeHost) {
+                App.UIcontrolFunctions.lockGrid(grid2);
+            } else{
+                App.UIcontrolFunctions.unlockGrid(grid2);
+            }
+        },
+
+        // nothing actually happens here yet, but we might want to add a "waiting for opponent" message
+        // the involved user won't have to manually input anything if using THIS client.
+        p0CheckingUIState: function() {
+        },
+
+        p1CheckingUIState: function() {
+        },
+
+        updateTile: function(grid, index, isHit) {
+            if(isHit){
+                grid.children[index].style.backgroundColor = 'red';
+                hits[index] = true;
+            } 
+            grid.children[index].innerHTML = 'X';
+            grid.children[index].style.fontWeight = 'bold';
+            grid.children[index].style.color = 'black';
+            grid.children[index].verticalAlign = 'middle';
+            grid.children[index].style.textAlign = 'center';
+            grid.children[index].style.fontSize = '30px';
+        },        
+
+        // this is mostly used during the phases of the game concerning the stake, we register callbacks which tie into the contract to confirm or refuse payments
+        createPopout: function(Title, Message, AcceptActionCallback, RefuseActionCallback, args, showCancel) {
+            // notify player of the stake proposal, do this via popup box
+            var modal = document.getElementById("myModal");
+            var acceptBtn = document.getElementById("acceptBtn");
+            var refuseBtn = document.getElementById("refuseBtn");
+            var title = document.getElementById("modal-title");
+            var message = document.getElementById("modal-message");
+            // set the title and message of the popup box
+            title.innerHTML = Title;
+            message.innerHTML = Message;
+            modal.style.display = "flex";
+            if(!showCancel) {
+                refuseBtn.style.display = "none";
+            } else {
+                refuseBtn.style.display = "flex";
+            }
+            acceptBtn.addEventListener("click", function() {
+                // Add your code here for the accept action
+                console.log("User clicked Accept");
+                if(AcceptActionCallback != null)
+                    AcceptActionCallback(args);
+                closeModal();
+                return true;
+            });
+            refuseBtn.addEventListener("click", function() {
+                // Add your code here for the refuse action
+                console.log("User clicked Refuse");
+                if(RefuseActionCallback != null)
+                    RefuseActionCallback(args);
+                closeModal();
+                return false;
+            });
+            function closeModal() {
+                modal.style.display = "none";
+            }
+            window.addEventListener("click", function(event) {
+                if (event.target == modal) {
+                    event.preventDefault(); // Prevent closing the modal by clicking outside
+                }
+            });
+        },
     },
-}
 
-UIcontrolFunctions.populateGrids();
-UIcontrolFunctions.initialGameUIState();
-
-function handleClick(event) {
-    var grid = event.target.closest('.grid');
-    var index = event.target.dataset.index;
-    if (grid.id === "your-grid") {
-        // if this is the player's grid we are placing a ship or removing an already placed ship
-        // there's a limit of 20 ships which can be placed, disable the grid once this limit is reached
-        if(ships[index]) {
-            // if the tile is already occupied by a ship, remove it
-            event.target.style = getComputedStyle(event.target);
-            ships[index] = false;
-            ships_placed--;
-        } else if (!ships[index] && ships_placed < 20) {
-            event.target.style.backgroundColor = "grey";
-            // this is an array storing the value of each tile in the grid which we will use to generate the merkle trie
-            ships[index] = true;
-            ships_placed++;
+    handleClick(event) {
+        var grid = event.target.closest('.grid');
+        var index = event.target.dataset.index;
+        if (grid.id === "your-grid") {
+            // if this is the player's grid we are placing a ship or removing an already placed ship
+            // there's a limit of 20 ships which can be placed, disable the grid once this limit is reached
+            if(App.ships[index]) {
+                // if the tile is already occupied by a ship, remove it
+                event.target.style = getComputedStyle(event.target);
+                App.ships[index] = false;
+                App.ships_placed--;
+            } else if (!App.ships[index] && App.ships_placed < 20) {
+                event.target.style.backgroundColor = "grey";
+                // this is an array storing the value of each tile in the grid which we will use to generate the merkle trie
+                App.ships[index] = true;
+                App.ships_placed++;
+            }
+        } else if (grid.id === "opponent-grid") {
+            // if this is the opponent's grid we are firing a shot, we need to tie this to the contract
+            // TODO: rewrite a handleclick function specific for the opponent's grid and register it with the contract
+            event.target.style.backgroundColor = "red";
+            event.target.style.pointerEvents = "none";
         }
-    } else if (grid.id === "opponent-grid") {
-        // if this is the opponent's grid we are firing a shot, we need to tie this to the contract
-        // TODO: rewrite a handleclick function specific for the opponent's grid and register it with the contract
-        event.target.style.backgroundColor = "red";
-        event.target.style.pointerEvents = "none";
-    }
-    if (ships_placed === 20) {
-        UIcontrolFunctions.enableSubmitBoardButton();
-    } else {
-        UIcontrolFunctions.disableSubmitBoardButton();
-    }
-}
-
-// debug button
-var printGameStateButton = document.getElementById("print-game-state-btn");
-printGameStateButton.addEventListener("click", printGameState);
-// and its associated function
-function printGameState() {
-    console.log("Ships placed: " + ships_placed);
-    console.log("Ships: " + ships);
-    console.log("Hits: " + hits);
-    console.log("CurrGameID: " + currGameID);
-    console.log("CurrGameState: " + currGameState);
-    console.log("Our address: " + web3.eth.accounts[0]);  
-}
-
-// the actual web3 app
-App = {
-    web3Provider: null,
-    contracts: {},
-    currentBlockNumber: 0,
-    initialBlockNumber: 0,
+        if (ships_placed === 20) {
+            App.UIcontrolFunctions.enableSubmitBoardButton();
+        } else {
+            App.UIcontrolFunctions.disableSubmitBoardButton();
+        }
+    },
 
     init: async function() {
         await App.initWeb3();
@@ -435,8 +432,8 @@ App = {
         web3 = new Web3(App.web3Provider);
         await web3.eth.getBlockNumber(function(error, result) {
             if (!error) {
-                currentBlockNumber = result;
-                initialBlockNumber = currentBlockNumber;
+                App.currentBlockNumber = result;
+                App.initialBlockNumber = App.currentBlockNumber;
                 console.log("Initial block number: " + result);
             } else {
                 console.error('Error:', error);
@@ -449,13 +446,13 @@ App = {
     updateBlockNumber: async function() {
         await web3.eth.getBlockNumber(function(error, result) {
             if (!error) {
-                currentBlockNumber = result;
+                App.currentBlockNumber = result;
                 console.log("Current block number: " + result);
             } else {
                 console.error('Error:', error);
             }
         });
-        return currentBlockNumber;
+        return App.currentBlockNumber;
     },
 
     initContract: function() {
@@ -510,27 +507,30 @@ App = {
                 if (!error) {
                     // move game state to instance.GameStates.WAITING if the second argument of the event is our address
                     if(event.args._to === web3.eth.accounts[0]) {
-                        currGameID = event.args._gameID.c[0];
-                        currGameState = 0;
-                        areWeHost = true;
+                        App.currGameID = event.args._gameID.c[0];
+                        App.currGameState = 0;
+                        App.areWeHost = true;
                         console.log("GameID is: " + event.args._gameID.c[0]);
-                        console.log("Game state is now: " + currGameState);
+                        console.log("Game state is now: " + App.currGameState);
                         // also disable new game, join game and gameID input
-                        UIcontrolFunctions.joinedGameUIState();
+                        App.UIcontrolFunctions.joinedGameUIState();
                     }
                     console.log(event);
                     console.log("Current account is " + web3.eth.accounts[0] + " logic test is " + (event.args._to === web3.eth.accounts[0]));
-                    console.log("Current game ID is " + currGameID + " logic test is " + (event.args._gameID.c[0] === currGameID));
+                    console.log("Current game ID is " + App.currGameID + " logic test is " + (event.args._gameID.c[0] === App.currGameID));
                 } else {
                     console.error('Error:', error);
                 }
             });
             instance.AcceptingBoards({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
+                    console.log("hello from accepting boards");
                     // in this state we enable the player's board if and only if the argument is the player's address and the gameID is the one we're currently playing
-                    if(event.args._gameID.c[0] === currGameID) {
-                        UIcontrolFunctions.placingShipsUIState();
-                        currGameState = 1;
+                    if(event.args._gameID.c[0] === App.currGameID) {
+                        console.log("hello from accepting boards inner if");
+                        App.currGameState = 1;
+                        console.log("Game state is now: " + App.currGameState);
+                        App.UIcontrolFunctions.placingShipsUIState();
                     }
                 } else {
                     console.error('Error:', error);
@@ -540,8 +540,8 @@ App = {
                 if(!error) {
                     // console.log(event);
                     // allow player to propose a stake
-                    currGameState = 2;
-                    UIcontrolFunctions.settingStakeUIState();
+                    App.currGameState = 2;
+                    App.UIcontrolFunctions.settingStakeUIState();
                 } else {
                     console.error('Error:', error);
                 }
@@ -553,7 +553,7 @@ App = {
                     if(event.args._from !== web3.eth.accounts[0]) {
                         // notify player of the stake proposal, do this via popup box
                         popoutMessage = "Opponent suggests a stake of " + event.args._stakeValue.c[0] + " WEI.";
-                        UIcontrolFunctions.createPopout("Stake proposal", popoutMessage, App.proposeStake, null, event.args._stakeValue.c[0], true);
+                        App.UIcontrolFunctions.createPopout("Stake proposal", popoutMessage, App.proposeStake, null, event.args._stakeValue.c[0], true);
                     }
                 } else {
                     console.error('Error:', error);
@@ -563,9 +563,9 @@ App = {
                 if(!error) {
                     // console.log(event);
                     // move game state to 3
-                    currGameState = 3;
+                    App.currGameState = 3;
                     // notify player they can pay the agreed stake, do this via popup box                    
-                    UIcontrolFunctions.createPopout("Stake payable", "The stake is set to " + event.args._stakeValue + ". Pay?", App.payStake, App.declineStake, event.args._stakeValue, true);
+                    App.UIcontrolFunctions.createPopout("Stake payable", "The stake is set to " + event.args._stakeValue + ". Pay?", App.payStake, App.declineStake, event.args._stakeValue, true);
                 } else {
                     console.error('Error:', error);
                 }
@@ -577,7 +577,7 @@ App = {
                     if(event.args._whoPaid === web3.eth.accounts[0]) {
                         // wait on the other player to pay the stake, signaled by the PlayerZeroTurn event
                         // enable the call foul button
-                        UIcontrolFunctions.enableDeclareFoulButton();
+                        App.UIcontrolFunctions.enableDeclareFoulButton();
                     }
                 } else {
                     console.error('Error:', error);
@@ -588,7 +588,7 @@ App = {
                     // console.log(event);
                     // disable the place submit board button if we are the target of this message
                     if(event.args._player === web3.eth.accounts[0]) {
-                        UIcontrolFunctions.disableSubmitBoardButton();
+                        App.UIcontrolFunctions.disableSubmitBoardButton();
                     }
                 } else {
                     console.error('Error:', error);
@@ -598,9 +598,9 @@ App = {
                 if(!error) {
                     // console.log(event);
                     // set state to P0_FIRING
-                    currGameState = 4;
-                    UIcontrolFunctions.enableGrid(grid2);
-                    UIcontrolFunctions.p0FiringUIState();
+                    App.currGameState = 4;
+                    App.UIcontrolFunctions.enableGrid(App.grid2);
+                    App.UIcontrolFunctions.p0FiringUIState();
                     // time to register the event handler for clicking on an opponent's tile
                     var opponentGrid = document.getElementById("opponent-grid");
                     for(var i = 0; i < opponentGrid.children.length; i++) {
@@ -617,23 +617,23 @@ App = {
             instance.ShotsFired({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
                     // if we are not the _from of this event, we need to check and respond to the shot
-                    if(event.args._from !== web3.eth.accounts[0] && event.args._gameID.c[0] === currGameID) {
+                    if(event.args._from !== web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID) {
                         if(areWeHost){
-                            UIcontrolFunctions.p0CheckingUIState();
-                            currGameState = 7; // P0_CHECKING
+                            App.UIcontrolFunctions.p0CheckingUIState();
+                            App.currGameState = 7; // P0_CHECKING
                         }
                         else {
-                            UIcontrolFunctions.p1CheckingUIState();
-                            currGameState = 5; // P1_CHECKING
+                            App.UIcontrolFunctions.p1CheckingUIState();
+                            App.currGameState = 5; // P1_CHECKING
                         }
                         // reply to the contract with the result of the shot
                         // also update the relative tile on our board 
-                        UIcontrolFunctions.updateTile(grid1, event.args._location.c[0], ships[event.args._location.c[0]]);
+                        App.UIcontrolFunctions.updateTile(grid1, event.args._location.c[0], ships[event.args._location.c[0]]);
                         var target = event.args._location.c[0];
-                        var targetNode = MerkleHelperFunctions.leafNodes[target];
+                        var targetNode = App.MerkleHelperFunctions.leafNodes[target];
                         App.contracts.Battleships.deployed().then(function(instance) {
                             battleshipsInstance = instance;
-                            return battleshipsInstance.ConfirmShot(currGameID, event.args._location, ships[target], targetNode, MerkleHelperFunctions.computedTree.getHexProof(targetNode), {from: web3.eth.accounts[0]});
+                            return battleshipsInstance.ConfirmShot(App.currGameID, event.args._location, App.ships[target], targetNode, App.MerkleHelperFunctions.computedTree.getHexProof(targetNode), {from: web3.eth.accounts[0]});
                         })
                     }
                 } else {
@@ -643,16 +643,16 @@ App = {
             instance.ShotsChecked({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
                     // if we are not the _from of this event, we need to update our board!
-                    if(event.args._from !== web3.eth.accounts[0] && event.args._gameID.c[0] === currGameID && event.args._validiy) {
+                    if(event.args._from !== web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID && event.args._validiy) {
                         if(areWeHost){
-                            UIcontrolFunctions.p0FiringUIState();
-                            currGameState = 4; // P0_FIRING
+                            App.UIcontrolFunctions.p0FiringUIState();
+                            App.currGameState = 4; // P0_FIRING
                         } else {
-                            UIcontrolFunctions.p1FiringUIState();
-                            currGameState = 6; // P1_FIRING
+                            App.UIcontrolFunctions.p1FiringUIState();
+                            App.currGameState = 6; // P1_FIRING
                         }
                         // update the relative tile on the opponent's board
-                        UIcontrolFunctions.updateTile(grid2, event.args._location.c[0], event.args._isHit);
+                        App.UIcontrolFunctions.updateTile(App.grid2, event.args._location.c[0], event.args._isHit);
                     }
                 } else {
                     console.error('Error:', error);
@@ -660,19 +660,19 @@ App = {
             });
             instance.RequestBoard({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
-                    if(event.args._from !== web3.eth.accounts[0] && event.args._gameID.c[0] === currGameID){
+                    if(event.args._from !== web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID){
                         // we need to push all our nodes and proofs to the contract.
                         let tiles = [];
                         let proofs = [];
-                        MerkleHelperFunctions.board.forEach(element => {
+                        App.MerkleHelperFunctions.board.forEach(element => {
                             tiles.push(element.tile);
                         });
-                        MerkleHelperFunctions.leafNodes.forEach(element => {
-                            proofs.push(computedTree.getHexProof(element))
+                        App.MerkleHelperFunctions.leafNodes.forEach(element => {
+                            proofs.push(App.MerkleHelperFunctions.computedTree.getHexProof(element))
                         });
                         App.contracts.Battleships.deployed().then(function(instance) {
                             battleshipsInstance = instance;
-                            return battleshipsInstance.VerifyWinner(currGameID, tiles, ships, MerkleHelperFunctions.leafNodes, proofs, MerkleHelperFunctions.board_root, {from: web3.eth.accounts[0]});
+                            return battleshipsInstance.VerifyWinner(App.currGameID, tiles, App.ships, App.MerkleHelperFunctions.leafNodes, proofs, App.MerkleHelperFunctions.board_root, {from: web3.eth.accounts[0]});
                         });
                     }
                 } else {
@@ -682,12 +682,12 @@ App = {
             instance.Victory({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
                     // if we are the _winner of this event, we need to claim our winnings, enable the corresponding button
-                    if(event.args._winner === web3.eth.accounts[0] && currGameID === event.args._gameID.c[0]) {
+                    if(event.args._winner === web3.eth.accounts[0] && App.currGameID === event.args._gameID.c[0]) {
                         // show a popup box notifying the user of their victory
                         // we could also 
-                        UIcontrolFunctions.createPopout("Victory!", "You have won the game. You can now claim your winnings.", null, null, null, false);
+                        App.MerkleHelperFunctions.createPopout("Victory!", "You have won the game. You can now claim your winnings.", null, null, null, false);
                         // we could also have the claim winnings function embedded in the accept button of the popup box.
-                        UIcontrolFunctions.enableClaimWinningsButton();
+                        App.MerkleHelperFunctions.enableClaimWinningsButton();
                     }
                 } else {
                     console.error('Error:', error);
@@ -696,8 +696,8 @@ App = {
             instance.Foul({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
                     // if we are the _accused of this event, show a popup
-                    if(event.args._accused === web3.eth.accounts[0] && currGameID === event.args._gameID.c[0]) {
-                        UIcontrolFunctions.createPopout("Foul declared", "Your opponent has declared a foul. You have 5 blocks to respond starting from block " + event.args._block.c[0] + ".", null, null, null, false);
+                    if(event.args._accused === web3.eth.accounts[0] && App.currGameID === event.args._gameID.c[0]) {
+                        App.UIcontrolFunctions.createPopout("Foul declared", "Your opponent has declared a foul. You have 5 blocks to respond starting from block " + event.args._block.c[0] + ".", null, null, null, false);
                     }
                 } else {
                     console.error('Error:', error);
@@ -705,14 +705,12 @@ App = {
             });
             instance.GameEnded({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
-                    // reset the game state to 0
-                    currGameState = 0;
                     // restore UI to starting state
-                    UIcontrolFunctions.initialGameUIState();
-                    stateControlFunctions.resetBoard();
-                    stateControlFunctions.resetGlobals();
+                    App.UIcontrolFunctions.initialGameUIState();
+                    App.stateControlFunctions.resetBoard();
+                    App.stateControlFunctions.resetGlobals();
                     // notify the user via popup box
-                    UIcontrolFunctions.createPopout("Game ended", "The game has ended. You can now start a new game.", null, null, null, false);
+                    App.UIcontrolFunctions.createPopout("Game ended", "The game has ended. You can now start a new game.", null, null, null, false);
                 } else {
                     console.error('Error:', error);
                 }
@@ -754,11 +752,11 @@ App = {
                 return battleshipsInstance.joinGame(gameID, {from: account});
             }).then(function(result) {
                 // we need to deal with the event right away for the joiner, as otherwise they wouldn't know their gameID
-                // set currGameID to the gameID we just joined
-                currGameID = parseInt(result.logs[0].args._gameID.c[0]);
-                console.log("You joined game " + currGameID);
+                // set App.currGameID to the gameID we just joined
+                App.currGameID = parseInt(result.logs[0].args._gameID.c[0]);
+                console.log("You joined game " + App.currGameID);
                 // also disable new game, join game and gameID input
-                UIcontrolFunctions.joinedGameUIState();
+                App.UIcontrolFunctions.joinedGameUIState();
                 return;
             }).catch(function(err) {
                 console.log(err.message);
@@ -778,7 +776,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.placeShips(gameID, MerkleHelperFunctions.board_root, {from: account});
+                return battleshipsInstance.placeShips(App.currGameID, MerkleHelperFunctions.board_root, {from: account});
             })
         });
     },
@@ -800,7 +798,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.fireTorpedo(gameID, index, {from: account});
+                return battleshipsInstance.fireTorpedo(App.currGameID, index, {from: account});
             })
         });
     },
@@ -818,7 +816,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.proposeStake(gameID, stakeValue, {from: account});
+                return battleshipsInstance.proposeStake(App.currGameID, stakeValue, {from: account});
             })
         });
     },
@@ -833,7 +831,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.payStake(gameID, {from: account, value: stakeValue});
+                return battleshipsInstance.payStake(App.currGameID, {from: account, value: stakeValue});
             })
         });
     },
@@ -848,7 +846,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.declineStake(gameID, {from: account});
+                return battleshipsInstance.declineStake(App.currGameID, {from: account});
             })
         });
     },
@@ -863,7 +861,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.withdrawWinnings(gameID, {from: account});
+                return battleshipsInstance.withdrawWinnings(App.currGameID, {from: account});
             })
         });
     },
@@ -877,14 +875,14 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.FoulAccusation(gameID, {from: account});
+                return battleshipsInstance.FoulAccusation(App.currGameID, {from: account});
             })
         });
     },
 
     abandonGame: function() {
         // create a popup asking for confirmation
-        UIcontrolFunctions.createPopout("Abandon game", "Are you sure you want to abandon this game?", App.abandonHelper, null, null, true);
+        App.UIcontrolFunctions.createPopout("Abandon game", "Are you sure you want to abandon this game?", App.abandonHelper, null, null, true);
         
     },
 
@@ -897,7 +895,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.AbandonGame(currGameID, {from: account});
+                return battleshipsInstance.AbandonGame(App.currGameID, {from: account});
             })
         });
     }
@@ -905,6 +903,12 @@ App = {
 
 $(function() {
     $(window).load(function() {
+        
+        
         App.init();
+        App.UIcontrolFunctions.populateGrids(App.grid1);
+        App.UIcontrolFunctions.populateGrids(App.grid2);
+        App.UIcontrolFunctions.createDebugButton();
+        App.UIcontrolFunctions.initialGameUIState();
     });
 });
