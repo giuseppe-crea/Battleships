@@ -95,6 +95,7 @@ contract Battleships {
     event RequestBoard(uint _gameID, address _winner);
     event Victory(uint _gameID, address _winner);
     event Foul(uint _gameID, address _accused, uint _block);
+    event GameEnded(uint _gameID);
 
     error NoOpenGames();
     error InvalidGameID();
@@ -313,6 +314,40 @@ contract Battleships {
             openGames[gameID].state = GameStates.P0_FIRING;
             emit PlayerZeroTurn(gameID);
         }
+    }
+
+    function deleteGame(uint gameID) internal{ 
+        delete openGames[gameID].players[0].shots_board;
+        delete openGames[gameID].players[1].shots_board;
+        delete openGames[gameID].players[0];
+        delete openGames[gameID].players[1];
+        delete openGames[gameID];
+    }
+
+    function declineStake(uint gameID) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.ACCEPTING_PAYMENT) external {
+        // if this player has already paid the stake, they can't decline it
+        if((msg.sender == openGames[gameID].players[0].playerAddress && openGames[gameID].players[0].hasPaidStake) ||
+            (msg.sender == openGames[gameID].players[1].playerAddress && openGames[gameID].players[1].hasPaidStake))
+            revert StakeAlreadyDeposited();
+        // now we check who the sender is
+        uint senderIndex;
+        uint challengerIndex;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            senderIndex = 0;
+            challengerIndex = 1;
+        }else{
+            senderIndex = 1;
+            challengerIndex = 0;
+        }
+        // check if the opponent has already paid its stake
+        if(openGames[gameID].players[challengerIndex].hasPaidStake){
+            // if they have, we refund it
+            (bool success, ) = openGames[gameID].players[challengerIndex].playerAddress.call{value:openGames[gameID].decidedStake}("");
+            require(success);
+        }
+        // then we delete the game
+        deleteGame(gameID);
+        emit GameEnded(gameID);
     }
     
     function checkGamePayable(uint gameID) public view returns (bool) {

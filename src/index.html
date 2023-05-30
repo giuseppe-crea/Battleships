@@ -11,6 +11,16 @@
 </head>
 
 <body>
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+      <h2 id ="modal-title">Popup Dialog</h2>
+      <p id="modal-message">Do you want to proceed?</p>
+      <div class="modal-buttons">
+        <button id="acceptBtn" class="btn btn-primary">Accept</button>
+        <button id="refuseBtn" class="btn btn-secondary">Refuse</button>
+      </div>
+    </div>
+  </div>  
   <div class="container">
     <h1>Battleships Game</h1>
     <div class="row">
@@ -38,7 +48,6 @@
           </div>
           <div class="col align-self-end">
             <button class="btn btn-primary" id="propose-stake-btn">Propose Stake</button>
-            <button class="btn btn-primary" id="reset-board-btn">Reset Board</button>
             <button class="btn btn-primary" id="submit-board-btn">Submit Board</button>
             <input type="number" id="stake-value-input" class="form-control" placeholder="Proposed Stake">
           </div>
