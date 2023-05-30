@@ -1,12 +1,13 @@
 // ######################################################################
 // throw me some numbers
+const config = require('../truffle-config.js');
+const RPCurl = 'http://'+config.networks.development.host+":"+config.networks.development.port;
 
 const keccak256 = require("keccak256");
 const { MerkleTree } = require("merkletreejs");
-const rpcURL = 'http://127.0.0.1:7545'
 const Web3 = require("web3");
 
-const web3 = new Web3(rpcURL);
+const web3 = new Web3(RPCurl);
 
 // functions used in creating a new board for players.
 function generateRandomNumbers(count) {
