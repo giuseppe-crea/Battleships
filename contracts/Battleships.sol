@@ -512,6 +512,30 @@ contract Battleships {
         emit Victory(gameID, msg.sender);
     }
 
+    function AbandonGame(uint gameID) gameExists(gameID) isInGame(gameID) external {
+        // see if the game has a second player
+        uint opponentIndex;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            opponentIndex = 1;
+        } else {
+            opponentIndex = 0;
+        }
+        // check if both have paid the stake
+        if(openGames[gameID].players[opponentIndex].hasPaidStake && openGames[gameID].players[1 - opponentIndex].hasPaidStake){
+            // if they have, we declare the opponent the winner
+            TestWinner(gameID, openGames[gameID].players[opponentIndex].playerAddress);
+        } else {
+            // if only the opponent has paid the stake, we refund it
+            if(openGames[gameID].players[opponentIndex].hasPaidStake){
+                (bool success, ) = openGames[gameID].players[opponentIndex].playerAddress.call{value:openGames[gameID].decidedStake}("");
+                require(success);
+            }
+            // this delition only happens in this branch as the game will be deleted normally from testwinner otherwise
+            emit GameEnded(gameID);
+            deleteGame(gameID);
+        } // we keep the stake if the user cancelling the game has paid it. If they want the stake back because their oppoent is afk they should declare a foul instead of cancelling
+    }
+
     function WithdrawWinnings(uint gameID) gameExists(gameID) isWinner(gameID) assertState(gameID, GameStates.PAYABLE) external {
         uint amountOwed = openGames[gameID].decidedStake*2;
         openGames[gameID].state = GameStates.DONE;

@@ -10,8 +10,6 @@ var hits = new Array(64).fill(false);
 var grid1 = document.getElementById("your-grid");
 var grid2 = document.getElementById("opponent-grid");
 var grids = [grid1, grid2];
-const keccak256 = require("keccak256");
-const { MerkleTree } = require("merkletreejs");
 
 // remainder from when we had a reset board button
 const stateControlFunctions = {
@@ -62,7 +60,7 @@ const MerkleHelperFunctions = {
             this.board.push(board_elem);
         }
         this.leafNodes = this.board.map((_board) => 
-            web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
+            App.web3.utils.keccak256(App.web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
         );
         this.computedTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
         this.board_root = computedTree.getHexRoot();
@@ -107,6 +105,16 @@ const UIcontrolFunctions = {
     },
 
     // create functions to enable and disable each component of the app
+
+    enableAbandonGameButton: function() {
+        var abandonGameButton = document.getElementById("abandon-game-btn");
+        abandonGameButton.disabled = false;
+    },
+
+    disableAbandonGameButton: function() {
+        var abandonGameButton = document.getElementById("abandon-game-btn");
+        abandonGameButton.disabled = true;
+    },
 
     enableNewGameButtons: function() {
         var newPublicGameButton = document.getElementById("new-public-game-btn");
@@ -219,7 +227,7 @@ const UIcontrolFunctions = {
     },
 
     initialGameUIState: function(){
-        UIcontrolFunctions.populateGrids();
+        UIcontrolFunctions.disableAbandonGameButton();
         UIcontrolFunctions.disableGrid(grid1);
         UIcontrolFunctions.disableGrid(grid2);
         UIcontrolFunctions.disableSubmitBoardButton();
@@ -227,6 +235,9 @@ const UIcontrolFunctions = {
         UIcontrolFunctions.disableDeclareFoulButton();
         UIcontrolFunctions.disableProposeStakeButton();
         UIcontrolFunctions.disableStakeInput();
+        UIcontrolFunctions.enableNewGameButtons();
+        UIcontrolFunctions.enableJoinGameButton();
+        UIcontrolFunctions.enableGameIDInput();
     },
 
     joinedGameUIState: function() {
@@ -234,6 +245,7 @@ const UIcontrolFunctions = {
         UIcontrolFunctions.disableJoinGameButton();
         UIcontrolFunctions.disableGameIDInput();
         UIcontrolFunctions.disableNewGameButtons();
+        UIcontrolFunctions.enableAbandonGameButton();
         // set the placeholder text of gameID input to the gameID we just joined
         var gameIDInputField = document.getElementById("game-id-input");
         gameIDInputField.value = currGameID;
@@ -320,6 +332,7 @@ const UIcontrolFunctions = {
             if(AcceptActionCallback != null)
                 AcceptActionCallback(args);
             closeModal();
+            return true;
         });
         refuseBtn.addEventListener("click", function() {
             // Add your code here for the refuse action
@@ -327,6 +340,7 @@ const UIcontrolFunctions = {
             if(RefuseActionCallback != null)
                 RefuseActionCallback(args);
             closeModal();
+            return false;
         });
         function closeModal() {
             modal.style.display = "none";
@@ -339,6 +353,7 @@ const UIcontrolFunctions = {
     },
 }
 
+UIcontrolFunctions.populateGrids();
 UIcontrolFunctions.initialGameUIState();
 
 function handleClick(event) {
@@ -479,6 +494,15 @@ App = {
         });
         $(document).on('click', '#claim-winnings-btn', function() {
             App.withdrawWinnings();
+        });
+        $(document).on('click', '#declare-foul-btn', function() {
+            App.declareFoul();
+        });
+        $(document).on('click', '#propose-stake-btn', function() {
+            App.proposeStake();
+        });
+        $(document).on('click', '#abandon-game-btn', function() {
+            App.abandonGame();
         });
         // Listen for all events emitted by the contract
         App.contracts.Battleships.deployed().then(function(instance) {
@@ -783,6 +807,9 @@ App = {
 
     proposeStake: function(stakeValue) {
         // call the proposeStake function in the contract
+        if(stakeValue === null) {
+            stakeValue = parseInt(document.getElementById("stake-value-input").value);
+        }
         var battleshipsInstance;
         web3.eth.getAccounts(function(error, accounts) {
             if (error) {
@@ -837,6 +864,40 @@ App = {
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
                 return battleshipsInstance.withdrawWinnings(gameID, {from: account});
+            })
+        });
+    },
+
+    declareFoul: function() {
+        var battleshipsInstance;
+        web3.eth.getAccounts(function(error, accounts) {
+            if (error) {
+                console.log(error);
+            }
+            var account = accounts[0];
+            App.contracts.Battleships.deployed().then(function(instance) {
+                battleshipsInstance = instance;
+                return battleshipsInstance.FoulAccusation(gameID, {from: account});
+            })
+        });
+    },
+
+    abandonGame: function() {
+        // create a popup asking for confirmation
+        UIcontrolFunctions.createPopout("Abandon game", "Are you sure you want to abandon this game?", App.abandonHelper, null, null, true);
+        
+    },
+
+    abandonHelper: function() {
+        var battleshipsInstance;
+        web3.eth.getAccounts(function(error, accounts) {
+            if (error) {
+                console.log(error);
+            }
+            var account = accounts[0];
+            App.contracts.Battleships.deployed().then(function(instance) {
+                battleshipsInstance = instance;
+                return battleshipsInstance.AbandonGame(currGameID, {from: account});
             })
         });
     }
