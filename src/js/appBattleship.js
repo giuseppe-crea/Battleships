@@ -1,3 +1,4 @@
+var web3;
 App = {
     web3Provider: null,
     contracts: {},
@@ -64,10 +65,32 @@ App = {
                 App.MerkleHelperFunctions.board.push(board_elem);
             }
             App.MerkleHelperFunctions.leafNodes = this.board.map((_board) => 
-                web3.sha3(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
+                keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
             );
             App.MerkleHelperFunctions.computedTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
             App.MerkleHelperFunctions.board_root = computedTree.getHexRoot();
+        },
+        quickTest: function(){
+            // call the newGame function in the contract
+            /*
+            var battleshipsInstance;
+            web3.eth.getAccounts(function(error, accounts) {
+                if (error) {
+                    console.log(error);
+                }
+                var account = accounts[0];
+                console.log(account);
+                App.contracts.Battleships.deployed().then(function(instance) {
+                    battleshipsInstance = instance;
+                    return battleshipsInstance.abi.encodeParameters(['uint8','bool'],[0, true]);
+                })
+            });
+            */
+            const web3 = new Web3;
+            web3.eth.abi.encodeParameters(
+            ['address', 'uint256[]'],
+            ['0x6b175474e89094c44da98b954eedeac495271d0f', [1, 2, 3]]
+            );
         }
     },
 
@@ -80,6 +103,7 @@ App = {
             console.log("App.currGameID: " + App.currGameID);
             console.log("App.currGameState: " + App.currGameState);
             console.log("Our address: " + web3.eth.accounts[0]);
+            console.log("ABI test: " + App.MerkleHelperFunctions.quickTest());
         },
 
         createDebugButton: function() {
@@ -474,6 +498,7 @@ App = {
 
                 // Set the provider for our contract
                 App.contracts.Battleships.setProvider(App.web3Provider);
+                App.contracts.Battleships.abi = BattleshipsArtifact.abi;
 
                 resolve();
             }).fail(function(error) {
