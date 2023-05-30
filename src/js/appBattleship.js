@@ -64,7 +64,7 @@ App = {
                 App.MerkleHelperFunctions.board.push(board_elem);
             }
             App.MerkleHelperFunctions.leafNodes = this.board.map((_board) => 
-                App.web3.utils.keccak256(App.web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
+                web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
             );
             App.MerkleHelperFunctions.computedTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
             App.MerkleHelperFunctions.board_root = computedTree.getHexRoot();
@@ -79,7 +79,7 @@ App = {
             console.log("Hits: " + App.hits);
             console.log("App.currGameID: " + App.currGameID);
             console.log("App.currGameState: " + App.currGameState);
-            console.log("Our address: " + web3.eth.accounts[0]);  
+            console.log("Our address: " + web3.eth.accounts[0]);
         },
 
         createDebugButton: function() {
@@ -272,12 +272,12 @@ App = {
         },
 
         placingShipsUIState: function() {
-            App.UIcontrolFunctions.enableGrid(grid1);
+            App.UIcontrolFunctions.enableGrid(App.grid1);
             // the activation of the submit board button is dealt with in the event listener for board tiles, as it's tied to the number of ships placed
         },
 
         settingStakeUIState: function() {
-            App.UIcontrolFunctions.lockGrid(grid1);
+            App.UIcontrolFunctions.lockGrid(App.grid1);
             App.UIcontrolFunctions.enableProposeStakeButton();
             App.UIcontrolFunctions.enableStakeInput();
         },
@@ -294,17 +294,17 @@ App = {
             // player zero can click the grid, player one can't
             // this is effectively pointless as the contract already enforces the state machine, but we like it neat
             if(!areWeHost) {
-                App.UIcontrolFunctions.lockGrid(grid2);
+                App.UIcontrolFunctions.lockGrid(App.grid2);
             } else{
-                App.UIcontrolFunctions.unlockGrid(grid2);
+                App.UIcontrolFunctions.unlockGrid(App.grid2);
             }
         },
 
         p1FiringUIState: function() {
             if(areWeHost) {
-                App.UIcontrolFunctions.lockGrid(grid2);
+                App.UIcontrolFunctions.lockGrid(App.grid2);
             } else{
-                App.UIcontrolFunctions.unlockGrid(grid2);
+                App.UIcontrolFunctions.unlockGrid(App.grid2);
             }
         },
 
@@ -396,7 +396,7 @@ App = {
             event.target.style.backgroundColor = "red";
             event.target.style.pointerEvents = "none";
         }
-        if (ships_placed === 20) {
+        if (App.ships_placed === 20) {
             App.UIcontrolFunctions.enableSubmitBoardButton();
         } else {
             App.UIcontrolFunctions.disableSubmitBoardButton();
@@ -628,7 +628,7 @@ App = {
                         }
                         // reply to the contract with the result of the shot
                         // also update the relative tile on our board 
-                        App.UIcontrolFunctions.updateTile(grid1, event.args._location.c[0], ships[event.args._location.c[0]]);
+                        App.UIcontrolFunctions.updateTile(App.grid1, event.args._location.c[0], ships[event.args._location.c[0]]);
                         var target = event.args._location.c[0];
                         var targetNode = App.MerkleHelperFunctions.leafNodes[target];
                         App.contracts.Battleships.deployed().then(function(instance) {
@@ -766,7 +766,7 @@ App = {
 
     submitBoard: function() {
         // convert the grid to a merkle trie
-        MerkleHelperFunctions.generatePlayerBoard(ships);
+        App.MerkleHelperFunctions.generatePlayerBoard(App.ships);
         // call the placeShips function in the contract
         var battleshipsInstance;
         web3.eth.getAccounts(function(error, accounts) {
@@ -776,7 +776,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.placeShips(App.currGameID, MerkleHelperFunctions.board_root, {from: account});
+                return battleshipsInstance.placeShips(App.currGameID, App.MerkleHelperFunctions.board_root, {from: account});
             })
         });
     },
