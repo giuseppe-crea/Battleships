@@ -64,7 +64,7 @@ App = {
                 App.MerkleHelperFunctions.board.push(board_elem);
             }
             App.MerkleHelperFunctions.leafNodes = this.board.map((_board) => 
-                web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
+                web3.sha3(web3.eth.abi.encodeParameters(['uint8','bool'],[_board.tile,_board.ship]))
             );
             App.MerkleHelperFunctions.computedTree = new MerkleTree(leafNodes, keccak256, {sortPairs: true});
             App.MerkleHelperFunctions.board_root = computedTree.getHexRoot();
@@ -333,8 +333,8 @@ App = {
         createPopout: function(Title, Message, AcceptActionCallback, RefuseActionCallback, args, showCancel) {
             // notify player of the stake proposal, do this via popup box
             var modal = document.getElementById("myModal");
-            var acceptBtn = document.getElementById("acceptBtn");
-            var refuseBtn = document.getElementById("refuseBtn");
+            var old_acceptBtn = document.getElementById("acceptBtn");
+            var old_refuseBtn = document.getElementById("refuseBtn");
             var title = document.getElementById("modal-title");
             var message = document.getElementById("modal-message");
             // set the title and message of the popup box
@@ -342,26 +342,36 @@ App = {
             message.innerHTML = Message;
             modal.style.display = "flex";
             if(!showCancel) {
-                refuseBtn.style.display = "none";
+                old_refuseBtn.style.display = "none";
             } else {
-                refuseBtn.style.display = "flex";
+                old_refuseBtn.style.display = "flex";
             }
+            // reset all event listeners on the buttons
+            var acceptBtn = old_acceptBtn.cloneNode(true);
+            var refuseBtn = old_refuseBtn.cloneNode(true);
+            old_acceptBtn.parentNode.replaceChild(acceptBtn, old_acceptBtn);
+            old_refuseBtn.parentNode.replaceChild(refuseBtn, old_refuseBtn);
+            // install the new ones
             acceptBtn.addEventListener("click", function() {
                 // Add your code here for the accept action
                 console.log("User clicked Accept");
-                if(AcceptActionCallback != null)
-                    AcceptActionCallback(args);
                 closeModal();
                 return true;
             });
+            if(AcceptActionCallback != null){
+            acceptBtn.addEventListener("click", function() {
+                    AcceptActionCallback(args);
+            });}
             refuseBtn.addEventListener("click", function() {
                 // Add your code here for the refuse action
                 console.log("User clicked Refuse");
-                if(RefuseActionCallback != null)
-                    RefuseActionCallback(args);
                 closeModal();
                 return false;
             });
+            if(RefuseActionCallback != null){
+                refuseBtn.addEventListener("click", function() {
+                    RefuseActionCallback(args);
+            });}
             function closeModal() {
                 modal.style.display = "none";
             }
@@ -726,6 +736,7 @@ App = {
                 console.log(error);
             }
             var account = accounts[0];
+            console.log(account);
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
                 return battleshipsInstance.newGame(isPrivate, {from: account});
