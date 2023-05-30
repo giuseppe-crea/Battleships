@@ -90,8 +90,8 @@ contract Battleships {
     event AcceptingBoards(uint _gameID);
     event BoardAcknowledgeEvent(uint _gameID, address _player);
     event PlayerZeroTurn(uint _gameID);
-    event ShotsFired(uint _gameID, uint8 _location);
-    event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity);
+    event ShotsFired(uint _gameID, uint8 _location, address _from);
+    event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity, address _from);
     event RequestBoard(uint _gameID, address _winner);
     event Victory(uint _gameID, address _winner);
     event Foul(uint _gameID, address _accused, uint _block);
@@ -404,7 +404,7 @@ contract Battleships {
         if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
             TestWinner(gameID, msg.sender);
         } else {
-            emit ShotsFired(gameID, location);
+            emit ShotsFired(gameID, location, msg.sender);
         }
     }
 
@@ -450,11 +450,11 @@ contract Battleships {
             }
             // rotate state
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
-            emit ShotsChecked(gameID, location, isHit, true);
+            emit ShotsChecked(gameID, location, isHit, true, msg.sender);
         } else {
             // else we emit a 'shot failed to validate' message
             // keep in mind the foul for this user is NOT triggered automatically.
-            emit ShotsChecked(gameID, location, isHit, false);
+            emit ShotsChecked(gameID, location, isHit, false, msg.sender);
         }
     }
 
@@ -517,6 +517,7 @@ contract Battleships {
         openGames[gameID].state = GameStates.DONE;
         (bool success, ) = msg.sender.call{value:amountOwed}("");
         require(success);
+        deleteGame(gameID);
     }
 
     // a player can accuse another player of being afk if they don't act within X blocks

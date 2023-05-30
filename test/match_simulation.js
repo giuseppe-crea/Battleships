@@ -160,9 +160,8 @@ contract("Battleships", function (accounts) {
             let actualBalance = await web3.eth.getBalance(accounts[winnerIndex]);
             const b = BigInt(actualBalance);
 
-            //console.log(reply);
             const reply_two = await battleships.checkGameState(1, {from:accounts[3]});
-            assert.equal(reply_two, Battleships.GameStates.DONE, "Contract not done.");
+            assert.equal(reply_two, Battleships.GameStates.NONE, "Contract not done, game still exists.");
 
             const cost_one = reply.receipt.gasUsed * reply.receipt.effectiveGasPrice;
             const cost = BigInt(cost_one);
