@@ -75,30 +75,12 @@ App = {
             const hexString2 = val.toString(16).padStart(64, '0');
             // encode int 'numberVal' in the first 32 bytes of the array
             const hexString3 = '0x' + hexString + hexString2;
-            console.log("Computed string to hash has len " + hexString3.length + " and value:");
-            console.log(hexString3)
-            // of course printing out the output of keccak256 on this string gives us an array
-            console.log("The pure return value of keccak on it is: " + keccak256(hexString3));
-            // this is actually the value I want, but it's not in the correct format
-            // sending keccak256(hexString3) alone doesn't work, as that's an array. I need a way to convert the array into a len32 hex string, ideally by a library function
-            const tmpVal = keccak256(hexString3).toString('hex').padStart(32, '0');
-            console.log("Computed hash in hex as a string: " + tmpVal + " of len " + tmpVal.length)
-            // some other stuff I tried from stackoverflow, it doesn't work
-            const web3string = web3.fromAscii(keccak256(hexString3).toString());
-            console.log("Computed hash in hex with web3.fromAscii: " + web3string + " of len " + web3string.length);    
+            // console.log("Computed string to hash has len " + (hexString3.length - 2) + " and value:");
+            // console.log(hexString3);
+            // Correct way to hash our 'hex' string, this returns the same value as the contract
+            const tmpVal = web3.sha3(hexString3, {encoding: 'hex'});
+            // console.log("Computed hash in hex as a string: " + tmpVal + " of len " + (tmpVal.length -2))
             return tmpVal;
-        },
-        encodeNodeAsArray: function(tile, ship){
-            val = ship ? 1 : 0;
-            const hexString = Number(tile).toString(16).padStart(64, '0');
-            const hexString2 = val.toString(16).padStart(64, '0');
-            // encode int 'numberVal' in the first 32 bytes of the array
-            const hexString3 = '0x' + hexString + hexString2;
-            // join the result of keccak256(hexString3) into a single variable, taking them out of the array
-            const tmpVal = keccak256(hexString3);
-            console.log("Computed hash has len " + tmpVal.length)
-            console.log(tmpVal);
-            return keccak256(hexString3);
         }
     },
 
@@ -111,10 +93,6 @@ App = {
             console.log("App.currGameID: " + App.currGameID);
             console.log("App.currGameState: " + App.currGameState);
             console.log("Our address: " + web3.eth.accounts[0]);
-            //var encodedNode = App.MerkleHelperFunctions.encodeNode('52',true)
-            //console.log("ABI test: " + encodedNode);
-            //console.log("Lenght: " + encodedNode.length);
-            // console.log("Array now, length is " + App.MerkleHelperFunctions.encodeNode('52',true).length + " while content is: " + App.MerkleHelperFunctions.encodeNodeAsArray('52',true))
         },
 
         createDebugButton: function() {
@@ -531,6 +509,22 @@ App = {
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
                 return battleshipsInstance.echoNodeBytes(App.MerkleHelperFunctions.encodeNode('52', true), {from: account});
+            }).then(function(retVal) {
+                console.log("Server sees "+ retVal + " of length " + (retVal.length -2));
+            });
+        });
+    },
+
+    echoBytesInput: function(node) {
+        var battleshipsInstance;
+        web3.eth.getAccounts(function(error, accounts) {
+            if (error) {
+                console.log(error);
+            }
+            var account = accounts[0];
+            App.contracts.Battleships.deployed().then(function(instance) {
+                battleshipsInstance = instance;
+                return battleshipsInstance.echoNodeBytes(node, {from: account});
             }).then(function(retVal) {
                 console.log("Server sees "+ retVal + " of length " + (retVal.length -2));
             });
