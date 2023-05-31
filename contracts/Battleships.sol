@@ -512,6 +512,10 @@ contract Battleships {
         emit Victory(gameID, msg.sender);
     }
 
+    function echoNodeBytes(bytes32 node) public pure returns (bytes32) {
+        return node;
+    }
+
     function AbandonGame(uint gameID) gameExists(gameID) isInGame(gameID) external {
         // see if the game has a second player
         uint opponentIndex;
