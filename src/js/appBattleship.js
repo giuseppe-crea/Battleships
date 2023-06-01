@@ -852,11 +852,10 @@ App = {
                     if(event.args._winner === web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID){
                         // show user a popup, if they refuse to submit their board, they forfeit the game
                         // otherwise, the submission is automated
-                        App.UIcontrolFunctions.createPopout("Board requested", "The contract has declared you winner and must check your board before paying out. Submit?", null, App.abandonHelper, null, true);
+                        App.UIcontrolFunctions.createPopout("Board requested", "The contract has declared you winner and must check your board before paying out. Submit?", null, App.verifyVictory(), null, true);
                         // also enable the verify victory button just in case they refuse the transaction the first time.
                         App.UIcontrolFunctions.enableVerifyVictoryButton();
                         // we need to push all our nodes and proofs to the contract.
-                        App.verifyVictory();
                     }
                 } else {
                     console.error('Error:', error);
@@ -871,6 +870,12 @@ App = {
                         App.MerkleHelperFunctions.createPopout("Victory!", "You have won the game. You can now claim your winnings.", null, null, null, false);
                         // we could also have the claim winnings function embedded in the accept button of the popup box.
                         App.MerkleHelperFunctions.enableClaimWinningsButton();
+                    }else if(event.args._winner !== web3.eth.accounts[0] && App.currGameID === event.args._gameID.c[0]) {
+                        // show a popup box notifying the user of their defeat
+                        App.MerkleHelperFunctions.createPopout("Defeat!", "You have lost the game. You can now try starting a new game!", null, null, null, false);
+                        App.UIcontrolFunctions.initialGameUIState();
+                        App.stateControlFunctions.resetBoard();
+                        App.stateControlFunctions.resetGlobals();
                     }
                 } else {
                     console.error('Error:', error);
@@ -1059,7 +1064,7 @@ App = {
             battleshipsInstance = instance;
             return battleshipsInstance.VerifyWinner(App.currGameID, tiles, App.ships, App.MerkleHelperFunctions.leafNodes, proofs, App.MerkleHelperFunctions.board_root, {from: web3.eth.accounts[0]});
         }).then(function(retVal) {
-            disableVerifyVictoryButton();
+            App.UIcontrolFunctions.disableVerifyVictoryButton();
         });
     },
 
@@ -1121,7 +1126,11 @@ App = {
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
                 return battleshipsInstance.AbandonGame(App.currGameID, {from: account});
-            })
+            }).then(function(result) {
+                App.UIcontrolFunctions.initialGameUIState();
+                App.stateControlFunctions.resetBoard();
+                App.stateControlFunctions.resetGlobals();
+            });
         });
     }
 };

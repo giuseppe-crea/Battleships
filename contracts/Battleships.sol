@@ -482,17 +482,17 @@ contract Battleships {
     bytes32 root
     ) public {
         uint winnerIndex;
-        assert(openGames[gameID].valid);
-        assert(openGames[gameID].state == GameStates.CHECKING_WINNER);
+        require(openGames[gameID].valid, "Game does not exist");
+        require(openGames[gameID].state == GameStates.CHECKING_WINNER, "Game is not in the CHECKING_WINNER state");
         if(openGames[gameID].winner == openGames[gameID].players[0].playerAddress){
             winnerIndex = 0;
         } else {
             winnerIndex = 1;
         }
-        assert(openGames[gameID].winner == msg.sender);
-        assert(root == openGames[gameID].players[winnerIndex].boardTreeRoot);
-        assert(tiles.length == (BOARD_SIZE*BOARD_SIZE));
-        assert(ships.length == (BOARD_SIZE*BOARD_SIZE));
+        require(openGames[gameID].winner == msg.sender, "Only the winner can verify their board");
+        require(root == openGames[gameID].players[winnerIndex].boardTreeRoot, "The root provided does not match the root of the board");
+        require(tiles.length == (BOARD_SIZE*BOARD_SIZE), "The tiles array is not the correct size");
+        require(ships.length == (BOARD_SIZE*BOARD_SIZE), "The ships array is not the correct size");
         // First operation: make sure this board really has the required number of ships on it
         // and make sure the winner didn't send us a different board
         // in the same cycle, verify that the node is part of the tree
@@ -501,10 +501,10 @@ contract Battleships {
         for(uint8 i = 0; i < (BOARD_SIZE*BOARD_SIZE); i++){
             if(ships[i])
                 shipsTotal++;
-            assert(nodes[i] == GenLeafNode(tiles[i], ships[i]));
-            assert(Merkle.verifyCalldata(proofs[i], root, nodes[i]));
+            require(nodes[i] == GenLeafNode(tiles[i], ships[i]), "The node does not match the tile and ship provided");
+            require(Merkle.verifyCalldata(proofs[i], root, nodes[i]), "The proof does not match the root and node provided");
         }
-        assert(shipsTotal == NUMBER_OF_SHIP_SQUARES);
+        require(shipsTotal == NUMBER_OF_SHIP_SQUARES, "The board does not have the correct number of ships");
         // we don't use a conditional branch to alert the other player, as a Foul has already been triggered.
         openGames[gameID].canPay = true;
         openGames[gameID].state = GameStates.PAYABLE;
