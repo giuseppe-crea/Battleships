@@ -730,52 +730,6 @@ App = {
                     console.error('Error:', error);
                 }
             });
-            /*
-            instance.ShotsFired({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    if(event.args._gameID.c[0] === App.currGameID) {
-                        // if we are not the _from of this event, we need to check and respond to the shot
-                        if(event.args._from !== web3.eth.accounts[0]){
-                            // reply to the contract with the result of the shot
-                            // also update the relative tile on our board 
-                            var target = event.args._location.c[0];
-                            var targetNode = App.MerkleHelperFunctions.leafNodes[target];
-                            console.log("Target location is: " + event.args._location.c[0]);
-                            console.log("Truth value is: " + App.ships[target]);
-                            console.log("Target node is: " + targetNode);
-                            console.log("Target node proof is: " + App.MerkleHelperFunctions.computedTree.getHexProof(targetNode));
-                            // we only update the UI if the transaction is approved.
-                            App.UIcontrolFunctions.updateTile(App.grid1, event.args._location.c[0], App.ships[event.args._location.c[0]]);
-                            if(App.areWeHost){
-                                App.UIcontrolFunctions.p0CheckingUIState();
-                                App.currGameState = 7; // P0_CHECKING
-                            }
-                            else {
-                                App.UIcontrolFunctions.p1CheckingUIState();
-                                App.currGameState = 5; // P1_CHECKING
-                            }
-                            App.contracts.Battleships.deployed().then(function(instance) {
-                                battleshipsInstance = instance;
-                                return battleshipsInstance.ConfirmShot(App.currGameID, event.args._location.c[0], App.ships[target], targetNode, App.MerkleHelperFunctions.computedTree.getHexProof(targetNode), 
-                                {from: web3.eth.accounts[0]});
-                            })
-                        } else {
-                            // we are the ones who fired this shot, go into "opponent is checking" state
-                            if(App.areWeHost){
-                                App.UIcontrolFunctions.p1CheckingUIState();
-                                App.currGameState = 5; // P1_CHECKING
-                            }
-                            else {
-                                App.UIcontrolFunctions.p0CheckingUIState();
-                                App.currGameState = 7; // P0_CHECKING
-                            }
-                        }
-                    }
-                } else {
-                    console.error('Error:', error);
-                }
-            });
-            */
             instance.ShotsFired({}, {fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
                     if(event.args._gameID.c[0] === App.currGameID){
@@ -1060,6 +1014,10 @@ App = {
         App.MerkleHelperFunctions.leafNodes.forEach(element => {
             proofs.push(App.MerkleHelperFunctions.computedTree.getHexProof(element))
         });
+        console.log("Tiles: " + tiles);
+        console.log("Ships:" + App.ships);
+        console.log("Leaf nodes: " + App.MerkleHelperFunctions.leafNodes);
+        console.log("Proofs: " + proofs);
         App.contracts.Battleships.deployed().then(function(instance) {
             battleshipsInstance = instance;
             return battleshipsInstance.VerifyWinner(App.currGameID, tiles, App.ships, App.MerkleHelperFunctions.leafNodes, proofs, App.MerkleHelperFunctions.board_root, {from: web3.eth.accounts[0]});
