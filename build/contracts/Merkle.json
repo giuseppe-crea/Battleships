@@ -1197,7 +1197,7 @@
   "sourceMap": "69:1126:1:-:0;;;;;;;;;;;;;;;-1:-1:-1;;;69:1126:1;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "69:1126:1:-:0;;;;;;;;;;;;;;;;;;;;;;;;172:196;;;;;;:::i;:::-;;:::i;:::-;;;949:14:2;;942:22;924:41;;912:2;897:18;172:196:1;;;;;;;;295:4;356;319:33;340:5;;347:4;319:20;:33::i;:::-;:41;;172:196;-1:-1:-1;;;;;172:196:1:o;376:331::-;494:7;537:4;494:7;552:118;572:16;;;552:118;;;625:33;635:12;649:5;;655:1;649:8;;;;;;;:::i;:::-;;;;;;;625:9;:33::i;:::-;610:48;-1:-1:-1;590:3:1;;;;:::i;:::-;;;;552:118;;;-1:-1:-1;687:12:1;376:331;-1:-1:-1;;;;376:331:1:o;715:180::-;804:7;840:1;836;:5;:51;;998:13;1053:15;;;1089:4;1082:15;;;1136:4;1120:21;;836:51;;;998:13;1053:15;;;1089:4;1082:15;;;1136:4;1120:21;;844:20;829:58;715:180;-1:-1:-1;;;715:180:1:o;14:757:2:-;118:6;126;134;142;195:2;183:9;174:7;170:23;166:32;163:52;;;211:1;208;201:12;163:52;251:9;238:23;280:18;321:2;313:6;310:14;307:34;;;337:1;334;327:12;307:34;375:6;364:9;360:22;350:32;;420:7;413:4;409:2;405:13;401:27;391:55;;442:1;439;432:12;391:55;482:2;469:16;508:2;500:6;497:14;494:34;;;524:1;521;514:12;494:34;579:7;572:4;562:6;559:1;555:14;551:2;547:23;543:34;540:47;537:67;;;600:1;597;590:12;537:67;631:4;623:13;;;;655:6;;-1:-1:-1;693:20:2;;;680:34;;761:2;746:18;733:32;;-1:-1:-1;14:757:2;;-1:-1:-1;;;;14:757:2:o;976:127::-;1037:10;1032:3;1028:20;1025:1;1018:31;1068:4;1065:1;1058:15;1092:4;1089:1;1082:15;1108:232;1147:3;1168:17;;;1165:140;;1227:10;1222:3;1218:20;1215:1;1208:31;1262:4;1259:1;1252:15;1290:4;1287:1;1280:15;1165:140;-1:-1:-1;1332:1:2;1321:13;;1108:232::o",
   "source": "// SPDX-License-Identifier: MIT\r\npragma solidity >=0.4.22 <0.9.0;\r\n\r\nlibrary Merkle {\r\n    // Code from OpenZeppelin's project\r\n    // https://github.com/OpenZeppelin\r\n    function verifyCalldata(\r\n    bytes32[] calldata proof,\r\n    bytes32 root,\r\n    bytes32 leaf\r\n    ) external pure returns (bool) {\r\n        return processProofCalldata(proof, leaf) == root;\r\n    }\r\n\r\n    function processProofCalldata(\r\n        bytes32[] calldata proof,\r\n        bytes32 leaf\r\n    ) internal pure returns (bytes32) {\r\n        bytes32 computedHash = leaf;\r\n        for (uint256 i = 0; i < proof.length; i++) {\r\n            computedHash = _hashPair(computedHash, proof[i]);\r\n        }\r\n        return computedHash;\r\n    }\r\n\r\n    function _hashPair(bytes32 a, bytes32 b)\r\n        private\r\n        pure\r\n        returns(bytes32)\r\n    {\r\n        return a < b ? _efficientHash(a, b) : _efficientHash(b, a);\r\n    }\r\n\r\n    function _efficientHash(bytes32 a, bytes32 b)\r\n        private\r\n        pure\r\n        returns (bytes32 value)\r\n    {\r\n        assembly {\r\n            mstore(0x00, a)\r\n            mstore(0x20, b)\r\n            value := keccak256(0x00, 0x40)\r\n        }\r\n    }\r\n    // end of OpenZeppelin code\r\n}",
-  "sourcePath": "F:\\Documents\\Code\\School\\P2PBC\\Battleships\\contracts\\Merkle.sol",
+  "sourcePath": "C:\\Users\\maste\\Documents\\Code\\Battleships\\contracts\\Merkle.sol",
   "ast": {
     "absolutePath": "project:/contracts/Merkle.sol",
     "exportedSymbols": {
@@ -2523,12 +2523,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x8accf12d02652f05771743045849AFefcdcAA283",
-      "transactionHash": "0xe17c15b482feb02349c259e7a778a7d7a4170e7b269260d51f38884455e6fc70"
+      "address": "0x04bEB2E1F1fE2a78a8C24893911546894b441d42",
+      "transactionHash": "0xb496631540d3ab5b8f43f46e570238b6926f2d1396f2b2d08b70b1e61beb476d"
     }
   },
-  "schemaVersion": "3.4.13",
-  "updatedAt": "2023-06-01T01:07:54.687Z",
+  "schemaVersion": "3.4.14",
+  "updatedAt": "2023-06-01T16:21:14.611Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

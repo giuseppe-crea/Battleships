@@ -18,13 +18,13 @@ App = {
     // remainder from when we had a reset board button
     stateControlFunctions: {
         resetBoard: function() {
-            // Set every tile on the player's board to its default state and make them clickable again
-            var tiles = document.querySelectorAll("#your-grid .tile");
+            // Set every tile on both boards its default state and make them clickable again
+            // as this can only be used before a game has started, it won't ever reset the opponent's board
+            var tiles = document.querySelectorAll(".tile");
             for (var i = 0; i < tiles.length; i++) {
                 tiles[i].style.pointerEvents = "auto";
-                // set the background color to the same one found in the .tile class
+                tiles[i].innerHTML = "";
                 tiles[i].style = getComputedStyle(tiles[i]);
-                // re-enable the tile
                 tiles[i].enabled = true;
             }
             // reset the global variables
@@ -93,6 +93,19 @@ App = {
             console.log("App.currGameID: " + App.currGameID);
             console.log("App.currGameState: " + App.currGameState);
             console.log("Our address: " + web3.eth.accounts[0]);
+            if(App.currGameState >= 2){
+                console.log("Ships:" + App.ships);
+                console.log("Leaf nodes: " + App.MerkleHelperFunctions.leafNodes);
+                // log Proofs with separator '---'
+                proofs = [];
+                App.MerkleHelperFunctions.leafNodes.forEach(element => {
+                    proofs.push(App.MerkleHelperFunctions.computedTree.getHexProof(element))
+                });
+                console.log("Proofs: ");
+                proofs.forEach(element => {
+                    console.log(element);
+                });
+            }
         },
 
         createDebugButton: function() {
@@ -457,12 +470,12 @@ App = {
                 App.ships[index] = true;
                 App.ships_placed++;
             }
-        } 
-        if (App.ships_placed === 20) {
+            if (App.ships_placed === 20) {
             App.UIcontrolFunctions.enableSubmitBoardButton();
-        } else {
-            App.UIcontrolFunctions.disableSubmitBoardButton();
-        }
+            } else {
+                App.UIcontrolFunctions.disableSubmitBoardButton();
+            }
+        } 
     },
 
     init: async function() {
@@ -719,11 +732,10 @@ App = {
                         // time to register the event handler for clicking on an opponent's tile
                         var opponentGrid = document.getElementById("opponent-grid");
                         for(var i = 0; i < opponentGrid.children.length; i++) {
-                            // ignore the first row and column, as they are labels
-                            if(i % 9 === 0 || i < 9) {
-                                continue;
+                            // only add this listener to elements of class '.tile'
+                            if(!opponentGrid.children[i].classList.contains("tile-label")) {
+                                opponentGrid.children[i].addEventListener("click", App.opponentGridClick);
                             }
-                            opponentGrid.children[i].addEventListener("click", App.opponentGridClick);
                         }
                     }
                 } else {
@@ -946,13 +958,14 @@ App = {
                 console.log(error);
             }
             var account = accounts[0];
-            App.UIcontrolFunctions.updateShotFiredTile(index);
-            // disable the grid
-            App.UIcontrolFunctions.lockGrid(App.grid2);
             console.log("Firing torpedo towards " + index + " from account " + account + " in game " + App.currGameID + " in state " + App.currGameState);
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.FireTorpedo(App.currGameID, index, {from: account});
+                return battleshipsInstance.FireTorpedo(App.currGameID, index, {from: account}).then(function(result) {
+                    App.UIcontrolFunctions.updateShotFiredTile(index);
+                    // disable the grid
+                    App.UIcontrolFunctions.lockGrid(App.grid2);
+                });
             })
         });
     },
