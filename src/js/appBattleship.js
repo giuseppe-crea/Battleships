@@ -3,7 +3,7 @@ App = {
     contracts: {},
     currentBlockNumber: 0,
     initialBlockNumber: 0,
-
+    account: 0x0,
     // global variable to store the id of our currently joined game
     currGameID: 0,
     areWeHost: false,
@@ -61,6 +61,7 @@ App = {
                     tile: i,
                     ship: bool_board[i]
                 }
+                console.log("Pushing element: " + board_elem.tile + " " + board_elem.ship);
                 App.MerkleHelperFunctions.board.push(board_elem);
             }
             App.MerkleHelperFunctions.leafNodes = this.board.map((_board) => 
@@ -78,8 +79,9 @@ App = {
             // console.log("Computed string to hash has len " + (hexString3.length - 2) + " and value:");
             // console.log(hexString3);
             // Correct way to hash our 'hex' string, this returns the same value as the contract
-            const tmpVal = web3.sha3(hexString3, {encoding: 'hex'});
-            // console.log("Computed hash in hex as a string: " + tmpVal + " of len " + (tmpVal.length -2))
+            //const tmpVal = web3.utils.keccak256(hexString3, {encoding: 'hex'});
+            const tmpVal = web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[tile,ship]));
+            console.log("Computed hash in hex as a string: " + tmpVal + " of len " + (tmpVal.length -2))
             return tmpVal;
         }
     },
@@ -92,14 +94,13 @@ App = {
             console.log("Hits: " + App.hits);
             console.log("App.currGameID: " + App.currGameID);
             console.log("App.currGameState: " + App.currGameState);
-            console.log("Our address: " + web3.eth.accounts[0]);
+            console.log("Our address: " + App.account);
             if(App.currGameState >= 2){
                 console.log("Ships:" + App.ships);
                 console.log("Leaf nodes: " + App.MerkleHelperFunctions.leafNodes);
-                // log Proofs with separator '---'
                 proofs = [];
                 App.MerkleHelperFunctions.leafNodes.forEach(element => {
-                    proofs.push(App.MerkleHelperFunctions.computedTree.getHexProof(element))
+                    proofs.push([App.MerkleHelperFunctions.computedTree.getHexProof(element)])
                 });
                 console.log("Proofs: ");
                 proofs.forEach(element => {
@@ -514,6 +515,14 @@ App = {
                 console.error('Error:', error);
             }
         });
+        await web3.eth.getAccounts(function(error, result) {
+            if (!error) {
+                App.account = result[0];
+                console.log("Account: " + result[0]);
+            } else {
+                console.error('Error:', error);
+            }
+        });
 
         return App.initContract();
     },
@@ -545,6 +554,19 @@ App = {
             }).fail(function(error) {
                 reject(error);
             });
+        });
+    },
+
+    // debug function to echo a 2d array of bytes32
+    echoBoard: function() {
+        var battleshipsInstance;
+        board = [[App.MerkleHelperFunctions.encodeNode('53', true),App.MerkleHelperFunctions.encodeNode('54', true)],[App.MerkleHelperFunctions.encodeNode('53', true),App.MerkleHelperFunctions.encodeNode('54', true)]];
+        console.log(board);
+        App.contracts.Battleships.deployed().then(function(instance) {
+            battleshipsInstance = instance;
+            return battleshipsInstance.echo2dArray(board, {from: App.account});
+        }).then(function(retVal) {
+            console.log("Server sees "+ retVal);
         });
     },
 
@@ -614,7 +636,8 @@ App = {
             App.abandonGame();
         });
         $(document).on('click', '#print-game-state-btn', function() {
-            App.echoBytes();
+            //App.echoBytes();
+            App.echoBoard();
         });
         $(document).on('click', '#verify-victory-btn', function() {
             App.verifyVictory();
@@ -624,252 +647,196 @@ App = {
         });
         // Listen for all events emitted by the contract
         App.contracts.Battleships.deployed().then(function(instance) {
-            instance.ShareID({}, { fromBlock: 'latest', toBlock: 'latest'}).watch(function(error, event) {
-                if (!error) {
-                    // move game state to instance.GameStates.WAITING if the second argument of the event is our address
-                    if(event.args._to === web3.eth.accounts[0]) {
-                        App.currGameID = event.args._gameID.c[0];
-                        App.currGameState = 0;
-                        App.areWeHost = true;
-                        console.log("GameID is: " + event.args._gameID.c[0]);
-                        console.log("Game state is now: " + App.currGameState);
-                        // also disable new game, join game and gameID input
-                        App.UIcontrolFunctions.joinedGameUIState();
-                    }
-                    console.log(event);
-                    console.log("Current account is " + web3.eth.accounts[0] + " logic test is " + (event.args._to === web3.eth.accounts[0]));
-                    console.log("Current game ID is " + App.currGameID + " logic test is " + (event.args._gameID.c[0] === App.currGameID));
-                } else {
-                    console.error('Error:', error);
+            instance.ShareID().on('data', event => {
+                // move game state to instance.GameStates.WAITING if the second argument of the event is our address
+                if(event.args._to === App.account) {
+                    App.currGameID = event.args._gameID.words[0];
+                    App.currGameState = 0;
+                    App.areWeHost = true;
+                    console.log("GameID is: " + event.args._gameID.words[0]);
+                    console.log("Game state is now: " + App.currGameState);
+                    // also disable new game, join game and gameID input
+                    App.UIcontrolFunctions.joinedGameUIState();
                 }
+                console.log(event);
+                console.log("Current account is " + App.account + " logic test is " + (event.args._to === App.account));
+                console.log("Current game ID is " + App.currGameID + " logic test is " + (event.args._gameID.words[0] === App.currGameID));
             });
-            instance.AcceptingBoards({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
+            instance.AcceptingBoards().on('data', event => {
                     // in this state we enable the player's board if and only if the argument is the player's address and the gameID is the one we're currently playing
-                    if(event.args._gameID.c[0] === App.currGameID) {
+                    if(event.args._gameID.words[0] === App.currGameID) {
                         console.log("hello from accepting boards inner if");
                         App.currGameState = 1;
                         console.log("Game state is now: " + App.currGameState);
                         App.UIcontrolFunctions.placingShipsUIState();
                     }
-                } else {
-                    console.error('Error:', error);
-                }
             });
-            instance.GameStart({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    if(event.args._gameID.c[0] === App.currGameID) {
-                        // console.log(event);
-                        // allow player to propose a stake
-                        App.currGameState = 2;
-                        App.UIcontrolFunctions.settingStakeUIState();
-                    }
-                } else {
-                    console.error('Error:', error);
-                }
-            });
-            instance.SuggestedStake({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
+            instance.GameStart().on('data', event => {
+                if(event.args._gameID.words[0] === App.currGameID) {
                     // console.log(event);
-                    // ask player if this stake is okay if they're not the sender of this message
-                    if(event.args._gameID.c[0] === App.currGameID && event.args._to === web3.eth.accounts[0]) {
-                        // notify player of the stake proposal, do this via popup box
-                        stakeValue = event.args._stakeValue.c[0];
-                        popoutMessage = "Opponent suggests a stake of " + stakeValue + " WEI.";
-                        App.UIcontrolFunctions.createPopout("Stake proposal", popoutMessage, App.proposeStake, null, stakeValue, true);
-                    }
-                } else {
-                    console.error('Error:', error);
+                    // allow player to propose a stake
+                    App.currGameState = 2;
+                    App.UIcontrolFunctions.settingStakeUIState();
                 }
             });
-            instance.GamePayable({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    if(event.args._gameID.c[0] === App.currGameID) {
-                        // console.log(event);
-                        // move game state to 3
-                        App.currGameState = 3;
-                        // notify player they can pay the agreed stake, do this via popup box     
-                        stakeValue = event.args._stakeValue.c[0];
-                        App.UIcontrolFunctions.disableProposeStakeButton();         
-                        App.UIcontrolFunctions.createPopout("Stake payable", "The stake is set to " + stakeValue + ". Pay?", App.payStake, App.declineStake, stakeValue, true);
-                    }
-                } else {
-                    console.error('Error:', error);
+            instance.SuggestedStake().on('data', event => {
+                // console.log(event);
+                // ask player if this stake is okay if they're not the sender of this message
+                if(event.args._gameID.words[0] === App.currGameID && event.args._to === App.account) {
+                    // notify player of the stake proposal, do this via popup box
+                    stakeValue = event.args._stakeValue.words[0];
+                    popoutMessage = "Opponent suggests a stake of " + stakeValue + " WEI.";
+                    App.UIcontrolFunctions.createPopout("Stake proposal", popoutMessage, App.proposeStake, null, stakeValue, true);
                 }
             });
-            instance.StakePaid({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
+            instance.GamePayable().on('data', event => {
+                if(event.args._gameID.words[0] === App.currGameID) {
                     // console.log(event);
-                    // check if we are the _whoPaid of this message
-                    if(event.args._gameID.c[0] === App.currGameID && event.args._whoPaid === web3.eth.accounts[0]) {
-                        // wait on the other player to pay the stake, signaled by the PlayerZeroTurn event
-                        // enable the call foul button
-                        App.UIcontrolFunctions.enableDeclareFoulButton();
-                    }
-                } else {
-                    console.error('Error:', error);
+                    // move game state to 3
+                    App.currGameState = 3;
+                    // notify player they can pay the agreed stake, do this via popup box     
+                    stakeValue = event.args._stakeValue.words[0];
+                    App.UIcontrolFunctions.disableProposeStakeButton();         
+                    App.UIcontrolFunctions.createPopout("Stake payable", "The stake is set to " + stakeValue + ". Pay?", App.payStake, App.declineStake, stakeValue, true);
                 }
             });
-            instance.BoardAcknowledgeEvent({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    // console.log(event);
-                    // disable the place submit board button if we are the target of this message
-                    if(event.args._gameID.c[0] === App.currGameID) {
-                        App.UIcontrolFunctions.disableSubmitBoardButton();
-                    }
-                } else {
-                    console.error('Error:', error);
+            instance.StakePaid().on('data', event => {
+                // console.log(event);
+                // check if we are the _whoPaid of this message
+                if(event.args._gameID.words[0] === App.currGameID && event.args._whoPaid === App.account) {
+                    // wait on the other player to pay the stake, signaled by the PlayerZeroTurn event
+                    // enable the call foul button
+                    App.UIcontrolFunctions.enableDeclareFoulButton();
                 }
             });
-            instance.PlayerZeroTurn({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    // console.log(event);
-                    // set state to P0_FIRING
-                    if(event.args._gameID.c[0] === App.currGameID) {
-                        App.currGameState = 4;
-                        App.UIcontrolFunctions.enableGrid(App.grid2);
-                        App.UIcontrolFunctions.p0FiringUIState();
-                        // time to register the event handler for clicking on an opponent's tile
-                        var opponentGrid = document.getElementById("opponent-grid");
-                        for(var i = 0; i < opponentGrid.children.length; i++) {
-                            // only add this listener to elements of class '.tile'
-                            if(!opponentGrid.children[i].classList.contains("tile-label")) {
-                                opponentGrid.children[i].addEventListener("click", App.opponentGridClick);
-                            }
+            instance.BoardAcknowledgeEvent().on('data', event => {
+                // console.log(event);
+                // disable the place submit board button if we are the target of this message
+                if(event.args._gameID.words[0] === App.currGameID) {
+                    App.UIcontrolFunctions.disableSubmitBoardButton();
+                }
+            });
+            instance.PlayerZeroTurn().on('data', event => {
+                // console.log(event);
+                // set state to P0_FIRING
+                if(event.args._gameID.words[0] === App.currGameID) {
+                    App.currGameState = 4;
+                    App.UIcontrolFunctions.enableGrid(App.grid2);
+                    App.UIcontrolFunctions.p0FiringUIState();
+                    // time to register the event handler for clicking on an opponent's tile
+                    var opponentGrid = document.getElementById("opponent-grid");
+                    for(var i = 0; i < opponentGrid.children.length; i++) {
+                        // only add this listener to elements of class '.tile'
+                        if(!opponentGrid.children[i].classList.contains("tile-label")) {
+                            opponentGrid.children[i].addEventListener("click", App.opponentGridClick);
                         }
                     }
-                } else {
-                    console.error('Error:', error);
                 }
             });
-            instance.ShotsFired({}, {fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    if(event.args._gameID.c[0] === App.currGameID){
-                        // if we are the firing player, change the state to 'opposite_CHECKING'
-                        if(event.args._from === web3.eth.accounts[0]){
-                            if(App.areWeHost){
-                                App.UIcontrolFunctions.p1CheckingUIState();
-                                App.currGameState = 5; // P1_CHECKING
-                            } else {
-                                App.UIcontrolFunctions.p0CheckingUIState();
-                                App.currGameState = 7; // P0_CHECKING
-                            }
-                        } else if(event.args._from !== web3.eth.accounts[0]){
-                            // now we analyze the shot and generate proof of it
-                            var target = event.args._location.c[0];
-                            var targetNode = App.MerkleHelperFunctions.leafNodes[target];
-                            var targetNodeProof = App.MerkleHelperFunctions.computedTree.getHexProof(targetNode);
-                            // then we call the contract with the result of the shot
-                            // IMPORTANT: Due to duplicate events in the ganache log we should NEVER use an event parameter as a function parameter
-                            App.contracts.Battleships.deployed().then(function(instance) {
-                                instance.ConfirmShot(App.currGameID, target, App.ships[target], targetNode, targetNodeProof, {from: web3.eth.accounts[0]});
-                            }).then(function(result) {
-                                // refusing this transaction bricks the game
-                                // if we are the receiving player, change the state to 'us_CHECKING'
-                                App.UIcontrolFunctions.updateTile(App.grid1, target, App.ships[target]);
-                                if(App.areWeHost){
-                                    App.UIcontrolFunctions.p0CheckingUIState();
-                                    App.currGameState = 7; 
-                                } else {
-                                    App.UIcontrolFunctions.p1CheckingUIState();
-                                    App.currGameState = 5; 
-                                }
-                            });
-                        }
-                    }
-                } else {
-                    console.error('Error:', error);
-                }
-            });
-            instance.ShotsChecked({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    // if we are not the _from of this event, we need to update our board!
-                    if(event.args._gameID.c[0] === App.currGameID && event.args._validity) {
-                        if(event.args._from !== web3.eth.accounts[0]){
-                            // update the relative tile on the opponent's board
-                            target = event.args._location.c[0];
-                            claim = event.args._claim;
-                            App.UIcontrolFunctions.updateTile(App.grid2, target, claim);
-                            // if the message wasn't sent by us it means it's our turn to fire
-                            if(App.areWeHost){
-                                App.UIcontrolFunctions.p1FiringUIState();
-                                App.currGameState = 6;
-                            } else {
-                                App.UIcontrolFunctions.p0FiringUIState();
-                                App.currGameState = 4; 
-                            }
+            instance.ShotsFired().on('data', event => {
+                if(event.args._gameID.words[0] === App.currGameID){
+                    // if we are the firing player, change the state to 'opposite_CHECKING'
+                    if(event.args._from === App.account){
+                        if(App.areWeHost){
+                            App.UIcontrolFunctions.p1CheckingUIState();
+                            App.currGameState = 5; // P1_CHECKING
                         } else {
-                            // otherwise it's the opponent's
+                            App.UIcontrolFunctions.p0CheckingUIState();
+                            App.currGameState = 7; // P0_CHECKING
+                        }
+                    } else if(event.args._from !== App.account){
+                        // now we analyze the shot and generate proof of it
+                        var target = event.args._location.words[0];
+                        var targetNode = App.MerkleHelperFunctions.leafNodes[target];
+                        var targetNodeProof = App.MerkleHelperFunctions.computedTree.getHexProof(targetNode);
+                        // then we call the contract with the result of the shot
+                        // IMPORTANT: Due to duplicate events in the ganache log we should NEVER use an event parameter as a function parameter
+                        App.contracts.Battleships.deployed().then(function(instance) {
+                            instance.ConfirmShot(App.currGameID, target, App.ships[target], targetNode, targetNodeProof, {from: App.account});
+                        }).then(function(result) {
+                            // refusing this transaction bricks the game
+                            // if we are the receiving player, change the state to 'us_CHECKING'
+                            App.UIcontrolFunctions.updateTile(App.grid1, target, App.ships[target]);
                             if(App.areWeHost){
-                                App.UIcontrolFunctions.p0FiringUIState();
-                                App.currGameState = 4; 
+                                App.UIcontrolFunctions.p0CheckingUIState();
+                                App.currGameState = 7; 
                             } else {
-                                App.UIcontrolFunctions.p1FiringUIState();
-                                App.currGameState = 6; 
+                                App.UIcontrolFunctions.p1CheckingUIState();
+                                App.currGameState = 5; 
                             }
+                        });
+                    }
+                }
+            });
+            instance.ShotsChecked().on('data', event => {
+                // if we are not the _from of this event, we need to update our board!
+                if(event.args._gameID.words[0] === App.currGameID && event.args._validity) {
+                    if(event.args._from !== App.account){
+                        // update the relative tile on the opponent's board
+                        target = event.args._location.words[0];
+                        claim = event.args._claim;
+                        App.UIcontrolFunctions.updateTile(App.grid2, target, claim);
+                        // if the message wasn't sent by us it means it's our turn to fire
+                        if(App.areWeHost){
+                            App.UIcontrolFunctions.p1FiringUIState();
+                            App.currGameState = 6;
+                        } else {
+                            App.UIcontrolFunctions.p0FiringUIState();
+                            App.currGameState = 4; 
+                        }
+                    } else {
+                        // otherwise it's the opponent's
+                        if(App.areWeHost){
+                            App.UIcontrolFunctions.p0FiringUIState();
+                            App.currGameState = 4; 
+                        } else {
+                            App.UIcontrolFunctions.p1FiringUIState();
+                            App.currGameState = 6; 
                         }
                     }
-                } else {
-                    console.error('Error:', error);
                 }
             });
-            instance.RequestBoard({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    if(event.args._winner === web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID){
-                        // show user a popup, if they refuse to submit their board, they forfeit the game
-                        // otherwise, the submission is automated
-                        App.UIcontrolFunctions.createPopout("Board requested", "The contract has declared you winner and must check your board before paying out. Submit?", null, App.verifyVictory(), null, true);
-                        // also enable the verify victory button just in case they refuse the transaction the first time.
-                        App.UIcontrolFunctions.enableVerifyVictoryButton();
-                        // we need to push all our nodes and proofs to the contract.
-                    }
-                } else {
-                    console.error('Error:', error);
+            instance.RequestBoard().on('data', event => {
+                if(event.args._winner === App.account && event.args._gameID.words[0] === App.currGameID){
+                    // show user a popup, if they refuse to submit their board, they forfeit the game
+                    // otherwise, the submission is automated
+                    App.UIcontrolFunctions.createPopout("Board requested", "The contract has declared you winner and must check your board before paying out. Submit?", App.verifyVictory, null, null, true);
+                    // also enable the verify victory button just in case they refuse the transaction the first time.
+                    App.UIcontrolFunctions.enableVerifyVictoryButton();
+                    // we need to push all our nodes and proofs to the contract.
                 }
             });
-            instance.Victory({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    // if we are the _winner of this event, we need to claim our winnings, enable the corresponding button
-                    if(event.args._winner === web3.eth.accounts[0] && App.currGameID === event.args._gameID.c[0]) {
-                        // show a popup box notifying the user of their victory
-                        // we could also 
-                        App.MerkleHelperFunctions.createPopout("Victory!", "You have won the game. You can now claim your winnings.", null, null, null, false);
-                        // we could also have the claim winnings function embedded in the accept button of the popup box.
-                        App.MerkleHelperFunctions.enableClaimWinningsButton();
-                    }else if(event.args._winner !== web3.eth.accounts[0] && App.currGameID === event.args._gameID.c[0]) {
-                        // show a popup box notifying the user of their defeat
-                        App.MerkleHelperFunctions.createPopout("Defeat!", "You have lost the game. You can now try starting a new game!", null, null, null, false);
-                        App.UIcontrolFunctions.initialGameUIState();
-                        App.stateControlFunctions.resetBoard();
-                        App.stateControlFunctions.resetGlobals();
-                    }
-                } else {
-                    console.error('Error:', error);
+            instance.Victory().on('data', event => {
+                // if we are the _winner of this event, we need to claim our winnings, enable the corresponding button
+                if(event.args._winner === App.account && App.currGameID === event.args._gameID.words[0]) {
+                    // show a popup box notifying the user of their victory
+                    // we could also 
+                    App.UIcontrolFunctions.createPopout("Victory!", "You have won the game. You can now claim your winnings.", null, null, null, false);
+                    // we could also have the claim winnings function embedded in the accept button of the popup box.
+                    App.UIcontrolFunctions.enableClaimWinningsButton();
+                }else if(event.args._winner !== App.account && App.currGameID === event.args._gameID.words[0]) {
+                    // show a popup box notifying the user of their defeat
+                    App.UIcontrolFunctions.createPopout("Defeat!", "You have lost the game. You can now try starting a new game!", null, null, null, false);
+                    App.UIcontrolFunctions.initialGameUIState();
+                    App.stateControlFunctions.resetBoard();
+                    App.stateControlFunctions.resetGlobals();
                 }
             });
-            instance.Foul({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    // if we are the _accused of this event, show a popup
-                    if(event.args._accused === web3.eth.accounts[0] && App.currGameID === event.args._gameID.c[0]) {
-                        block = event.args._block.c[0];
-                        App.UIcontrolFunctions.createPopout("Foul declared", "Your opponent has declared a foul. You have 5 blocks to respond starting from block " + block + ".", null, null, null, false);
-                    }
-                } else {
-                    console.error('Error:', error);
+            instance.Foul().on('data', event => {
+                // if we are the _accused of this event, show a popup
+                if(event.args._accused === App.account && App.currGameID === event.args._gameID.words[0]) {
+                    block = event.args._block.words[0];
+                    App.UIcontrolFunctions.createPopout("Foul declared", "Your opponent has declared a foul. You have 5 blocks to respond starting from block " + block + ".", null, null, null, false);
                 }
             });
-            instance.GameEnded({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
-                if(!error) {
-                    if(event.args._gameID.c[0] === App.currGameID) {
-                        // restore UI to starting state
-                        App.UIcontrolFunctions.initialGameUIState();
-                        App.stateControlFunctions.resetBoard();
-                        App.stateControlFunctions.resetGlobals();
-                        // notify the user via popup box
-                        App.UIcontrolFunctions.createPopout("Game ended", "The game has ended. You can now start a new game.", null, null, null, false);
-                    }
-                } else {
-                    console.error('Error:', error);
+            instance.GameEnded().on('data', event => {
+                if(event.args._gameID.words[0] === App.currGameID) {
+                    // restore UI to starting state
+                    App.UIcontrolFunctions.initialGameUIState();
+                    App.stateControlFunctions.resetBoard();
+                    App.stateControlFunctions.resetGlobals();
+                    // notify the user via popup box
+                    App.UIcontrolFunctions.createPopout("Game ended", "The game has ended. You can now start a new game.", null, null, null, false);
                 }
             });
         });
@@ -911,7 +878,7 @@ App = {
             }).then(function(result) {
                 // we need to deal with the event right away for the joiner, as otherwise they wouldn't know their gameID
                 // set App.currGameID to the gameID we just joined
-                App.currGameID = parseInt(result.logs[0].args._gameID.c[0]);
+                App.currGameID = parseInt(result.logs[0].args._gameID.words[0]);
                 console.log("You joined game " + App.currGameID);
                 // also disable new game, join game and gameID input
                 App.UIcontrolFunctions.joinedGameUIState();
@@ -938,6 +905,7 @@ App = {
             }).then(function(result) {
                 // disable the player's grid
                 // in theory this happens in boardacknowledgeevent
+                console.log("Submitted board with root " + App.MerkleHelperFunctions.board_root);
                 App.UIcontrolFunctions.lockGrid(App.grid1);
             });
         });
@@ -1031,9 +999,12 @@ App = {
         console.log("Ships:" + App.ships);
         console.log("Leaf nodes: " + App.MerkleHelperFunctions.leafNodes);
         console.log("Proofs: " + proofs);
+        console.log("Typeof proofs[] is: " + typeof(proofs));
+        console.log("Typeof proofs[0] is: " + typeof(proofs[0]));
+        console.log("Typeof proofs[0][0] is: " + typeof(proofs[0][0]));
         App.contracts.Battleships.deployed().then(function(instance) {
             battleshipsInstance = instance;
-            return battleshipsInstance.VerifyWinner(App.currGameID, tiles, App.ships, App.MerkleHelperFunctions.leafNodes, proofs, App.MerkleHelperFunctions.board_root, {from: web3.eth.accounts[0]});
+            return battleshipsInstance.VerifyWinner(App.currGameID, tiles, App.ships, App.MerkleHelperFunctions.leafNodes, proofs, App.MerkleHelperFunctions.board_root, {from: App.account});
         }).then(function(retVal) {
             App.UIcontrolFunctions.disableVerifyVictoryButton();
         });
@@ -1049,7 +1020,7 @@ App = {
             var account = accounts[0];
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
-                return battleshipsInstance.withdrawWinnings(App.currGameID, {from: account});
+                return battleshipsInstance.WithdrawWinnings(App.currGameID, {from: account});
             })
         });
     },

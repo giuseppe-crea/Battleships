@@ -502,6 +502,8 @@ contract Battleships {
             if(ships[i])
                 shipsTotal++;
             require(nodes[i] == GenLeafNode(tiles[i], ships[i]), "The node does not match the tile and ship provided");
+            // TODO: fix the frontend so that the line below can parse the calldata correctly
+            // this works in the Chai tests
             require(Merkle.verifyCalldata(proofs[i], root, nodes[i]), "The proof does not match the root and node provided");
         }
         require(shipsTotal == NUMBER_OF_SHIP_SQUARES, "The board does not have the correct number of ships");
@@ -510,6 +512,10 @@ contract Battleships {
         openGames[gameID].state = GameStates.PAYABLE;
         ClearFoul(gameID);
         emit Victory(gameID, msg.sender);
+    }
+
+    function echo2dArray(bytes32[][] calldata array) public pure returns (bytes32[][] calldata){
+        return array;
     }
 
     function echoNodeBytes(bytes32 node) public pure returns (bytes32) {
@@ -545,6 +551,7 @@ contract Battleships {
         openGames[gameID].state = GameStates.DONE;
         (bool success, ) = msg.sender.call{value:amountOwed}("");
         require(success);
+        emit GameEnded(gameID);
         deleteGame(gameID);
     }
 

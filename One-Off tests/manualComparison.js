@@ -14,22 +14,25 @@ console.log("");
 console.log("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 console.log("");
 console.log("Loaded " + ships.length + " ships from file");
-console.log(ships);
+//console.log(ships);
 console.log("");
 console.log("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 console.log("");
 const leafNodesImported = fs.readFileSync(filePath, 'utf-8').split(',');
 console.log("Loaded " + leafNodesImported.length + " leaf nodes from file");
-console.log(leafNodesImported);
+//console.log(leafNodesImported);
 //const proofs = fs.readFileSync(path.join(dir, 'proofs.txt'), 'utf-8').split(',');
 
 function generatePlayerBoard(){
     let board = [];
     var j = 0;
+    shipVal = true;
     for(var i = 0; i < 64; i++){
+        if(i == 20)
+            shipVal = false;
         var board_elem = {
             tile: i,
-            ship: ships[i]
+            ship: shipVal
         }
         board.push(board_elem);
     }

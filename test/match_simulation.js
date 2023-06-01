@@ -142,10 +142,14 @@ contract("Battleships", function (accounts) {
             /*  
             console.log(tiles);
             console.log(ships);
-            console.log(proofs);
+            
             console.log(leaf_nodes[winnerIndex]);
             console.log(board_root[winnerIndex]);
             */
+            console.log("Typeof proofs[] is: " + typeof(proofs));
+            console.log("Typeof proofs[0] is: " + typeof(proofs[0]));
+            console.log("Typeof proofs[0][0] is: " + typeof(proofs[0][0]));
+            console.log(proofs);
             const reply = await battleships.VerifyWinner(1, tiles, ships, leaf_nodes[winnerIndex], proofs, board_root[winnerIndex], {from:accounts[winnerIndex]});
             assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
             const reply_two = await battleships.checkGameState(1);
