@@ -266,10 +266,12 @@ App = {
         // unlike disableGrid, this function only disables pointer events, without blurring
         // it's used for the actual play phase of the game during which the user needs to see their own tiles
         lockGrid: function(grid) {
+            console.log("locking "+grid.id)
             grid.style.pointerEvents = "none";
         },
 
         unlockGrid: function(grid) {
+            console.log("unlocking "+grid.id)
             grid.style.pointerEvents = "auto";
         },
 
@@ -367,6 +369,7 @@ App = {
         },
 
         updateTile: function(grid, index, isHit) {
+            grid = document.getElementById(grid.id);
             tile = grid.querySelector(`[data-index="${index}"]`);
             if(isHit){
                 tile.style.backgroundColor = 'red';
@@ -795,9 +798,9 @@ App = {
                             App.contracts.Battleships.deployed().then(function(instance) {
                                 instance.ConfirmShot(App.currGameID, target, App.ships[target], targetNode, targetNodeProof, {from: web3.eth.accounts[0]});
                             }).then(function(result) {
-                                // only update the UI after the transaction is accepted
                                 // refusing this transaction bricks the game
                                 // if we are the receiving player, change the state to 'us_CHECKING'
+                                App.UIcontrolFunctions.updateTile(App.grid1, target, App.ships[target]);
                                 if(App.areWeHost){
                                     App.UIcontrolFunctions.p0CheckingUIState();
                                     App.currGameState = 7; 
@@ -823,20 +826,20 @@ App = {
                             App.UIcontrolFunctions.updateTile(App.grid2, target, claim);
                             // if the message wasn't sent by us it means it's our turn to fire
                             if(App.areWeHost){
-                                App.UIcontrolFunctions.p0FiringUIState();
-                                App.currGameState = 4; // P0_FIRING
-                            } else {
                                 App.UIcontrolFunctions.p1FiringUIState();
-                                App.currGameState = 6; // P1_FIRING
+                                App.currGameState = 6;
+                            } else {
+                                App.UIcontrolFunctions.p0FiringUIState();
+                                App.currGameState = 4; 
                             }
                         } else {
                             // otherwise it's the opponent's
                             if(App.areWeHost){
-                                App.UIcontrolFunctions.p1FiringUIState();
-                                App.currGameState = 6; // P1_FIRING
-                            } else {
                                 App.UIcontrolFunctions.p0FiringUIState();
-                                App.currGameState = 4; // P0_FIRING
+                                App.currGameState = 4; 
+                            } else {
+                                App.UIcontrolFunctions.p1FiringUIState();
+                                App.currGameState = 6; 
                             }
                         }
                     }
@@ -846,7 +849,7 @@ App = {
             });
             instance.RequestBoard({}, { fromBlock: 'latest', toBlock: 'latest' }).watch(function(error, event) {
                 if(!error) {
-                    if(event.args._from === web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID){
+                    if(event.args._winner === web3.eth.accounts[0] && event.args._gameID.c[0] === App.currGameID){
                         // show user a popup, if they refuse to submit their board, they forfeit the game
                         // otherwise, the submission is automated
                         App.UIcontrolFunctions.createPopout("Board requested", "The contract has declared you winner and must check your board before paying out. Submit?", null, App.abandonHelper, null, true);
