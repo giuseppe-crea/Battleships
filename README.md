@@ -1,5 +1,28 @@
 # Design Doc P2PBC “Battleships”
 
+#### Table of Contents
+1. [Premise](#premise)
+    1. [Game design decisions](#game-design-decisions)
+2. [Implementation](#implementation)
+    1. [State Machine](#state-machine)
+    2. [Data Structures](#data-structures)
+        1. [Implementation of game list](#implementation-of-game-list)
+        2. [Implementation of the Game struct](#implementation-of-the-game-struct)
+        3. [Implementation of the Player struct](#implementation-of-the-player-struct)
+        4. [Implementation of the Game Board](#implementation-of-the-game-board)
+        5. [Implementation of the user-side game board](#implementation-of-the-user-side-game-board)
+    3. [Contract](#contract)
+        1. [Foul Mechanism](#foul-mechanism)
+        2. [Merkle.sol](#merklesol)
+    4. [Web-App](#web-app)
+        1. [App Namespace](#app-namespace)
+        2. [UI design](#ui-design)
+        3. [Computing the Merkle Tree](#computing-the-merkle-tree)
+        4. [Listening for Events](#listening-for-events)
+        5. [Calling the contract](#calling-the-contract)
+3. [Gas Cost Analysis](#gas-cost-analysis)
+4. [Tests](#tests)   
+
 ## Premise
 
 The aim of this project is the development of a distributed application which implements a version of the classic game "Battleships”.
@@ -16,7 +39,7 @@ The host player, the one who started the new game, always goes first.
 The first player to hit all of their opponent’s ship tiles and subsequently prove the validity of their own board is declared the winner. If a player fails to prove their board was valid their opponent can accuse them of foul.
 To prevent AFK players from locking down funds a process has been implemented through which users can accuse the opponent of committing a "foul". Users can only start this process while they are not in control of the state of the game, and their opponent can only clear this accusation by advancing the game into the next legal state. If the accusation has not been cleared after 5 (configurable at deployment time) blocks have been mined the contract's state is advanced to the very end, setting the accuser as winner and allowing them to retrieve any deposited funds, provided they did not cheat.
 
-## Implementation Choices
+## Implementation
 
 The contract code was written in Solidity and it was deployed to a local Ganache test network using the Truffle suite.
 The use of the Truffle development suite was suggested during lab classes. 
@@ -211,3 +234,13 @@ At this point the "claim winning" button will become enabled. Completing that tr
 ![The claim winnings button, along with all its friends.](./images/claimWinnings.png "Claim winnings")
 
 As mentioned in the contract's section of this document, declaring a foul is an action which becomes available only after we have paid our stake. While we don't bother disabling and enabling the button each time the state of the game moves from player to opponent, the contract will still check whether or not we are in a legal state to declare a Foul.
+
+#### Computing the Merkle Tree
+
+#### Listening for Events
+
+#### Calling the Contract
+
+## Gas Cost Analysis
+
+## Tests
