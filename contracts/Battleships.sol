@@ -513,15 +513,7 @@ contract Battleships {
         ClearFoul(gameID);
         emit Victory(gameID, msg.sender);
     }
-
-    function echo2dArray(bytes32[][] calldata array) public pure returns (bytes32[][] calldata){
-        return array;
-    }
-
-    function echoNodeBytes(bytes32 node) public pure returns (bytes32) {
-        return node;
-    }
-
+    
     function AbandonGame(uint gameID) gameExists(gameID) isInGame(gameID) external {
         // see if the game has a second player
         uint opponentIndex;

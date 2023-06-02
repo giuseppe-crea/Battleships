@@ -98,7 +98,7 @@ The key elements needed for to identify a player within a game have been selecte
 As mentioned above, this is the current player's view of their opponent's battlefield.
 
 This element is used to keep track of where the player has fired upon, the total number of shots they fired, and the total number of opponent ships they hit. It is one of our anti-cheating methods, as it keeps track of how many board tiles exist in total and triggers a win when they have all been fired upon, preventing a dishonest player from submitting an empty board and forcing their opponent into an infinite game.
-The presence of a 2d array of booleans allows us to prevent a player from firing on the same spot twice, but we have decided to not implement this measure because if a player wants to lose on purpose that's their decision to make.
+The presence of an array of booleans allows us to prevent a player from firing on the same spot twice, but we have decided to not implement this measure because if a player wants to lose on purpose that's their decision to make.
 
 #### Implementation of the user-side game board
 
@@ -107,12 +107,41 @@ Given that the board is a SIZE_SIDE by SIZE_SIDE square of 0s (water) and 1s (sh
 Let's think of a different implementation.
 Rather than encoding every single square of the the grid into our trie, we simply encode the 20 values where our ships are placed. This assigns a value from 0 to 63 to each square on the board, taking the bottom left as origin square, incrementing by one for each square on the right and by eight for each square up.
 We now evaluate the safety of this Merkle tree.
-We are generating a random permutation of 20 elements (ships) in a set of 64 elements (board tiles). This means there are roughly 3.535218 × 10<sup>18</sup> combinations available, computed by the classic formula 
+We are generating a random permutation of 20 elements (ships) in a set of 64 elements (board tiles). This means there are roughly 3.535218 × 10<sup>18</sup> combinations available, computed by the classic formula $$\[ C(n, k) = \frac{n!}{k! \cdot (n - k)!} \]$$
 
-$$\[ C(n, k) = \frac{n!}{k! \cdot (n - k)!} \]$$
-
-. Computing and storing that many combinations with today's hardware is not feasible, thus we don't need to worry about users pre-computing every possible board
+Computing and storing that many combinations with today's hardware is not feasible, thus we don't need to worry about users pre-computing every possible board. 
+If this had been a concern simply adding an additional source of randomness when hashing the node client-side would solve the issue. We would then have needed to supply this random value to the contract during both shot verification and board verification phases.
 
 ### Contract
+
+The contract implements a total of 20 public functions, plus one final public debug function which can only be called by the contract's owner, and should be removed for final deplyment in a real environment.
+
+Listing them all would be superfluous. Let's instead discuss the general flow of a game.
+
+1. User creates a new game, the ShareID event is emitted with their address and the ID the contract has assigned to that game in the arguments.
+2. Other users can join open games, either at random (the first open game available) or directly, by ID. Once a game has been joined by a second player its state moves on and an event is emitted.
+3. Users submit their boards. The server emits an event when they receive it, and another event when they have received both. Players can use this event to know they are now free to submit stake proposals.
+4. The players agree on a stake as described before under "Implementation of the Player struct" and relative events are emitted. Once the stake has been agreed on players can pay the contract. At this point the contract moves into play phase.
+5. Players alternate between the functions 'FireTorpedo' and 'ConfirmShot'. Calling 'FireTorpedo' will signal to the opponent of the caller that they have been fired upon via a ShotsFired event. The fired upon player can now call the ConfirmShot event, where they supply the hash of the target node and the truth value of that shot. The contract will verify that truth value and only advance the state of the game if it could confirm the player's claim. In either case the contract will emit an event related to the ConfirmShot function, where it either confirms or denies the caller's claim.
+To make sure the caller's claim relates to the node they submitted the contract will compute the node once again and verify that it matches the supplied node and proof both.
+6. This goes on until a player loses all ships. As mentioned before a contingency is in place in case one of the two players has supplied a fully empty board, where the game will end no matter what after all tiles have been fired upon.
+7. The winner is asked to supply their board. For this they will need to supply:
+    1. Full list of tile number, completely useless but small in size and not harmful. It could be interesting for future changes to the contract allowing for weird board shapes.
+    2. Full list of ship positions encoded as a boolean array with one element per tile. If a ship is present the value is true, false otherwise.
+    3. Full list of hashes of the tiles, which make up the nodes of our Merkle tree. These have to be supplied in incremental order starting from tile zero.
+    4. Full list of proofs for each tile. This is a 2d array and has to follow the same order as before.
+    5. Root of the merkle tree. Superfluous but not harmful.
+8. If the winner's board passes the above check, the game is set to payable. Now the winner can call the WithdrawWinnings function and enjoy the payout.
+
+#### Foul Mechanism
+
+In all this we should mention the Foul mechanism.
+As required, to prevent AFK players from stalling a game indefinitely, a Foul mechanism is in place.
+The Foul mechanism can only be triggered by a player who is not responsible for advancing the state of the contract, and it can only be triggered after funds have been deposited. It would be pointless to stall before any money has been put on the table.
+The Foul mechanism works by writing the caller's address in the 'accuser' field of the Game struct for the current game, and updating the 'blockNumber' field to the current block number.
+The accused opponent has 5 blocks of time to advance the state of the contract into a position where the accuser has control. This will trigger the 'ClearFoul' method within the contract and zero the 'accuser' address. 
+If the foul is not cleared within the alloted number of blocks then, when the accuser calls the 'CheckFoulTimer' function, the game will enter the CHECKING_WINNER stage, with the accuser as potential winner. 
+The accuser will still be required to submit a valid board. Failure to do so will make the game unpayable, and will lock the stake funds with the contract. There is also no mechanism to delete a game in this state.
+It is important to note that the accused player CANNOT clear a foul after the allotted number of blocks has passed, but an accuser can verify a foul at any time.
 
 ### Web-App
