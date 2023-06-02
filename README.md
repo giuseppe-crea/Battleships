@@ -52,12 +52,18 @@ Run `npm install` to install all dependencies.
 ### Running the project
 
 1. Start Ganache, create a chain and add the project to it by linking the truffle-config file in the project root.
-    1. If your Ganache network is not running on `http://localhost:7545` you will need to change the network address in the truffle-config file.
+    
+    If your Ganache network is not running on `http://localhost:7545` you will need to change the network address in the truffle-config file.
+
 2. Run `truffle migrate` to deploy the contract to the local Ganache network
+
 3. Run `npm run dev` to start the web3 app
+
 4. Disable lite-server's synchronization functions at `http://localhost:3001/` by selecting the `Sync Options` menu from the left side of the page and clicking on `Disable all`. You might want to keep CodeSync enabled in case you want to edit the code and see the changes reflected in the browser.
+
 5. Open `http://localhost:3000/` in your browser of choice. The app should be running.
-    6. In case you want to run two instances of the application and connect separate Metamask accounts to them I would suggest using firefox and creating a new profile for each instance. Another option would be using different browsers.
+    
+    In case you want to run two instances of the application and connect separate Metamask accounts to them I would suggest using firefox and creating a new profile for each instance. Another option would be using different browsers.
 
 ## Implementation
 
