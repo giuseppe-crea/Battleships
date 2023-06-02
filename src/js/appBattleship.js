@@ -557,41 +557,6 @@ App = {
         });
     },
 
-    // quick debug function to have the node echoed back to us
-    echoBytes: function() {
-        var battleshipsInstance;
-        //var node = App.MerkleHelperFunctions.encodeNode('52', true);
-        //console.log("We are about to send the node: " + node + " of length " + node.length);
-        web3.eth.getAccounts(function(error, accounts) {
-            if (error) {
-                console.log(error);
-            }
-            var account = accounts[0];
-            App.contracts.Battleships.deployed().then(function(instance) {
-                battleshipsInstance = instance;
-                return battleshipsInstance.echoNodeBytes(App.MerkleHelperFunctions.encodeNode('52', true), {from: account});
-            }).then(function(retVal) {
-                console.log("Server sees "+ retVal + " of length " + (retVal.length -2));
-            });
-        });
-    },
-
-    echoBytesInput: function(node) {
-        var battleshipsInstance;
-        web3.eth.getAccounts(function(error, accounts) {
-            if (error) {
-                console.log(error);
-            }
-            var account = accounts[0];
-            App.contracts.Battleships.deployed().then(function(instance) {
-                battleshipsInstance = instance;
-                return battleshipsInstance.echoNodeBytes(node, {from: account});
-            }).then(function(retVal) {
-                console.log("Server sees "+ retVal + " of length " + (retVal.length -2));
-            });
-        });
-    },
-
     bindEvents: function() {
         // using the same syntax as the example below, create binding for all components of our app
         // we actually register this only once the game has begun
@@ -621,10 +586,6 @@ App = {
         });
         $(document).on('click', '#abandon-game-btn', function() {
             App.abandonGame();
-        });
-        $(document).on('click', '#print-game-state-btn', function() {
-            //App.echoBytes();
-            App.echoBoard();
         });
         $(document).on('click', '#verify-victory-btn', function() {
             App.verifyVictory();
@@ -927,6 +888,10 @@ App = {
         if(stakeValue === undefined) {
             stakeValue = parseInt(document.getElementById("stake-value-input").value);
         }
+        if(isNaN(stakeValue)) {
+            stakeValue = parseInt(0);
+        }
+        document.getElementById("stake-value-input").value = stakeValue;
         var battleshipsInstance;
         web3.eth.getAccounts(function(error, accounts) {
             if (error) {

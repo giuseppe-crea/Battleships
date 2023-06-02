@@ -116,6 +116,8 @@ If this had been a concern simply adding an additional source of randomness when
 
 The contract implements a total of 20 public functions, plus one final public debug function which can only be called by the contract's owner, and should be removed for final deplyment in a real environment.
 
+All contract functions execute a long list of checks on the sender, gameID, game State and any other relevant values, making sure an illegal move can never be performed.
+
 Listing them all would be superfluous. Let's instead discuss the general flow of a game.
 
 1. User creates a new game, the ShareID event is emitted with their address and the ID the contract has assigned to that game in the arguments.
@@ -144,4 +146,68 @@ If the foul is not cleared within the alloted number of blocks then, when the ac
 The accuser will still be required to submit a valid board. Failure to do so will make the game unpayable, and will lock the stake funds with the contract. There is also no mechanism to delete a game in this state.
 It is important to note that the accused player CANNOT clear a foul after the allotted number of blocks has passed, but an accuser can verify a foul at any time.
 
+#### Merkle.sol
+
+To keep size of the compiled artifact down and avoid hitting the Spurious-Dragons limit functions which do not require access to the state of a running game were moved into a separate contract.
+In practice, this meant that all functions used to on the Merkle tree could be moved into their own contract, which was declared as a library and linked to the main Battleships.sol contract in the migration file.
+
+To prevent inlining of Merkle.sol we turned on the compiler's optimization options.
+
 ### Web-App
+
+The web dApp serving as user interface for our contract was developed using truffle-contract 4.0 and web3js 1.7.0, which crucially were NOT the suggested libraries we have seen during the laboratory classes.
+The suggested libraries were severely outdated and presented both critical bugs (serializing 2d arrays was impossible in the provided version of web3js) and lacked basic features such as abi encoding of parameters.
+Trying to work around these issues created significant delays. The major issue came from the fact that the contract had been tested with the latest version of web3js as installed via NPM, but there are many breaking changes between that version and the supplied one, and this did not become apparent until fairly later on in development.
+On top of that finding a working mix of truffle-contract and web3js versions was non-trivial and required both multiple tries, and rewriting core functions of the dApp.
+
+#### App Namespaces
+
+The app presents 3 large namespaces
+
+1. stateControlFunctions: Contains functions aimed at resetting the state of the page to zero.
+2. MerkleHelperFunctions: Contains the functions needed to compute a Merkle tree from our board, as well as storing the various elements of our computed tree.
+3. UIcontrolFunctions: Contains a long list of functions aimed at changing the appearence of the page as the game progresses, enabling and disabling components as needed. This is purely for the user's benefit as the contract will never accept an illegal input.
+
+A fourth, overarching Namespace is of course App itself. Within App we have enclosed the whole code.
+
+#### UI design
+
+![Initial state of the game web app](./images/webApp.png "Web app UI.")
+
+The web application was designed for ease of use.
+On the left we can see the user's board, currently disabled, while on the right we can see the opponent's board, that too disabled.
+
+When an user presses the new game function and completes the associated transaction, the ID of their new game will be displayed in the input field below, which will of course be locked down.
+
+If a user clicks the join button with no input they will be placed in the first open game, and will be notified of that game's ID in the same way as described above. The game ID field can be used to select a specific game to join.
+
+![Player's board after 2 players join a game.](./images/unlockedBoard.png "Unlocked Player One Board")
+
+Once a game acquires two players the user's board for both of them will unlock, allowing them to place 'ships' by clicking on tiles. Clicking again will remove the ship.
+Once 20 tiles have been placed the user can submit their board to the game.
+
+![Propose Stake button and relative Field once enabled.](./images/proposeStake.png "Propose stake fields")
+
+After a board has been submitted through the relative button it becomes possible to propose a stake. Once a player proposes a stake their opponent will see receive a popup alerting them of that.
+
+![The stake proposal popup on the receiver's side.](./images/receivedProposal.png "Proposal popup")
+
+Clicking accept will invoke the proposeStake method of the contract with the displayed value. It is also possible to click cancel and counter-propose, or even propose the same stake, in which case the contract will see this as reaching an agreement and will move on to asking both parties to pay.
+The GamePayable event will create a popup asking to pay. Refusal to do so will end the game and refund the opponent their stake, if that had already been paid. 
+After both stakes have been paid the game moves on to the battle stage.
+
+![Waiting on the opponent to check this shot.](./images/waitingOnReply.png "Waiting...")
+
+Clicking on a tile on the opponent's board (an action only possible when it is our turn) will generate a yellow tile with a question mark, which will remain such until our opponent has answered. After a few rounds of back and forth, the board will begin to look something like this.
+
+![Example of game being played after a few turns of back and forth.](./images/midgame.png "The game board during gameplay")
+
+The game proceeds until one of the two players either wins, or forfeits the game via the big red 'Abandon Game' button. The remaining player will be asked for their board and, if it validates, they will see a Victory notification.
+
+![The victory notification received after validating your board.](./images/victory.png "Victory notification")
+
+At this point the "claim winning" button will become enabled. Completing that transaction will delete the contract and put clear the state of our web app.
+
+![The claim winnings button, along with all its friends.](./images/claimWinnings.png "Claim winnings")
+
+As mentioned in the contract's section of this document, declaring a foul is an action which becomes available only after we have paid our stake. While we don't bother disabling and enabling the button each time the state of the game moves from player to opponent, the contract will still check whether or not we are in a legal state to declare a Foul.
