@@ -257,10 +257,24 @@ As mentioned in the contract's section of this document, declaring a foul is an 
 
 #### Computing the Merkle Tree
 
+In the MerkleHelperFunctions namespace we find two functions, one for generating the Merkle tree root, leaves and proofs from the player's board, and one for encoding a single tile of the board into a node, and computing the hash of that node.
+The term 'node' indicates in this case the pair tile number concatenated with the tile's value, which is then hashed to produce the node's hash. Using the web3.eth.abi.encodeParameters function we can encode the inputs in a way which we are sure will mirror the encoding on the Contract's side.
+The trio of Tree root, leaves and Tree from which we then compute the proof for a node on-demand are stored in this namespace, and used when verifying a shot or submitting a board for validation.
+
 #### Listening for Events
+
+The web app listens for events emitted by the contract, and updates the UI accordingly and game state accordingly. This is the preferred method to update the state, as updating after executing an action on the frontend side of things might lead to inconsistencies between the chain and the state represented in the frontend.
+Rather than using the .wait function on the various events, we had to use the .on function, as the new version of truffle-contract does not support the former.
 
 #### Calling the Contract
 
+Calling the contract is a rather painless procedure after the initial setup. We simply make sure to fetch the current user account of Metamask, then make sure the contract is deployed and finally call the contract's methods with the appropriate parameters.
+For functions which are supposed to update the UI we place that update as a .then clause of the contract call, as not to mess up the state of the frontend in case the user refuses the transaction.
+
 ## Tests
+
+Extensive unit tests have been written for the contract, and can be found in the test folder. 
+Each test is supposed to test a different logic partition of the contract and tests both the positive and negative outcomes of each function as expected of a unit test.
+Sadly, code coverage for truffle suite doesn't seem to be available, at least not anymore, as the only tool which seemingly provided this functionality has deprecated support for Truffle.
 
 ## Gas Cost Analysis
