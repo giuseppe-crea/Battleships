@@ -3,7 +3,10 @@
 #### Table of Contents
 1. [Premise](#premise)
     1. [Game design decisions](#game-design-decisions)
-2. [Implementation](#implementation)
+2. [Installation](#installation)
+    1. [Requirements](#requirements)
+    2. [Installation](#installation-1)
+3. [Implementation](#implementation)
     1. [State Machine](#state-machine)
     2. [Data Structures](#data-structures)
         1. [Implementation of game list](#implementation-of-game-list)
@@ -20,8 +23,8 @@
         3. [Computing the Merkle Tree](#computing-the-merkle-tree)
         4. [Listening for Events](#listening-for-events)
         5. [Calling the contract](#calling-the-contract)
-3. [Gas Cost Analysis](#gas-cost-analysis)
-4. [Tests](#tests)   
+4. [Tests](#tests) 
+5. [Gas Cost Analysis](#gas-cost-analysis)
 
 ## Premise
 
@@ -38,6 +41,23 @@ Any 8x8 board with 20 ship tiles and 44 water tiles is considered valid. The amo
 The host player, the one who started the new game, always goes first.
 The first player to hit all of their opponent’s ship tiles and subsequently prove the validity of their own board is declared the winner. If a player fails to prove their board was valid their opponent can accuse them of foul.
 To prevent AFK players from locking down funds a process has been implemented through which users can accuse the opponent of committing a "foul". Users can only start this process while they are not in control of the state of the game, and their opponent can only clear this accusation by advancing the game into the next legal state. If the accusation has not been cleared after 5 (configurable at deployment time) blocks have been mined the contract's state is advanced to the very end, setting the accuser as winner and allowing them to retrieve any deposited funds, provided they did not cheat.
+
+## Installation
+
+### Requirements
+
+This project requires Nodejs, npm, Ganache, and Truffle to be installed on the host machine.
+Run `npm install` to install all dependencies.
+
+### Running the project
+
+1. Start Ganache, create a chain and add the project to it by linking the truffle-config file in the project root.
+    1. If your Ganache network is not running on `http://localhost:7545` you will need to change the network address in the truffle-config file.
+2. Run `truffle migrate` to deploy the contract to the local Ganache network
+3. Run `npm run dev` to start the web3 app
+4. Disable lite-server's synchronization functions at `http://localhost:3001/` by selecting the `Sync Options` menu from the left side of the page and clicking on `Disable all`. You might want to keep CodeSync enabled in case you want to edit the code and see the changes reflected in the browser.
+5. Open `http://localhost:3000/` in your browser of choice. The app should be running.
+    6. In case you want to run two instances of the application and connect separate Metamask accounts to them I would suggest using firefox and creating a new profile for each instance. Another option would be using different browsers.
 
 ## Implementation
 
@@ -241,6 +261,6 @@ As mentioned in the contract's section of this document, declaring a foul is an 
 
 #### Calling the Contract
 
-## Gas Cost Analysis
-
 ## Tests
+
+## Gas Cost Analysis
