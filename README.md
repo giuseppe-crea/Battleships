@@ -106,8 +106,12 @@ The board must be publicly auditable, but only provable by the author. For this 
 Given that the board is a SIZE_SIDE by SIZE_SIDE square of 0s (water) and 1s (ship), simply encoding this parameter into the leaf node of a Merkle tree would allow any third party to test each square for 1 or 0 and view anyone’s board.
 Let's think of a different implementation.
 Rather than encoding every single square of the the grid into our trie, we simply encode the 20 values where our ships are placed. This assigns a value from 0 to 63 to each square on the board, taking the bottom left as origin square, incrementing by one for each square on the right and by eight for each square up.
-One small addendum to this has to be made. A particularly devious user could pre-generate every possible board given the fact size of the board and number of ships are fixed in the contract, and add them in a board-to-root map. This would allow them to know their opponent's board beforehand.
-We can solve this by introducing a random nonce in the hashing procedure.
+We now evaluate the safety of this Merkle tree.
+We are generating a random permutation of 20 elements (ships) in a set of 64 elements (board tiles). This means there are roughly 3.535218 × 10<sup>18</sup> combinations available, computed by the classic formula 
+
+$$\[ C(n, k) = \frac{n!}{k! \cdot (n - k)!} \]$$
+
+. Computing and storing that many combinations with today's hardware is not feasible, thus we don't need to worry about users pre-computing every possible board
 
 ### Contract
 
