@@ -71,15 +71,6 @@ App = {
             App.MerkleHelperFunctions.board_root = App.MerkleHelperFunctions.computedTree.getHexRoot();
         },
         encodeNode: function(tile, ship){
-            val = ship ? 1 : 0;
-            const hexString = Number(tile).toString(16).padStart(64, '0');
-            const hexString2 = val.toString(16).padStart(64, '0');
-            // encode int 'numberVal' in the first 32 bytes of the array
-            const hexString3 = '0x' + hexString + hexString2;
-            // console.log("Computed string to hash has len " + (hexString3.length - 2) + " and value:");
-            // console.log(hexString3);
-            // Correct way to hash our 'hex' string, this returns the same value as the contract
-            //const tmpVal = web3.utils.keccak256(hexString3, {encoding: 'hex'});
             const tmpVal = web3.utils.keccak256(web3.eth.abi.encodeParameters(['uint8','bool'],[tile,ship]));
             console.log("Computed hash in hex as a string: " + tmpVal + " of len " + (tmpVal.length -2))
             return tmpVal;
@@ -221,7 +212,6 @@ App = {
         },
 
         enableProposeStakeButton: function() {
-            console.log("Hello from enableProposeStakeButton")
             var proposeStakeButton = document.getElementById("propose-stake-btn");
             proposeStakeButton.disabled = false;
         },
@@ -280,12 +270,10 @@ App = {
         // unlike disableGrid, this function only disables pointer events, without blurring
         // it's used for the actual play phase of the game during which the user needs to see their own tiles
         lockGrid: function(grid) {
-            console.log("locking "+grid.id)
             grid.style.pointerEvents = "none";
         },
 
         unlockGrid: function(grid) {
-            console.log("unlocking "+grid.id)
             grid.style.pointerEvents = "auto";
         },
 
@@ -305,7 +293,6 @@ App = {
         },
 
         joinedGameUIState: function() {
-            console.log("hello from joinedGameUIState");
             // obscure all join/new game buttons and the gameID input
             App.UIcontrolFunctions.disableJoinGameButton();
             App.UIcontrolFunctions.disableGameIDInput();
@@ -816,10 +803,7 @@ App = {
                     App.UIcontrolFunctions.enableClaimWinningsButton();
                 }else if(event.args._winner !== App.account && App.currGameID === event.args._gameID.words[0]) {
                     // show a popup box notifying the user of their defeat
-                    App.UIcontrolFunctions.createPopout("Defeat!", "You have lost the game. You can now try starting a new game!", null, null, null, false);
-                    App.UIcontrolFunctions.initialGameUIState();
-                    App.stateControlFunctions.resetBoard();
-                    App.stateControlFunctions.resetGlobals();
+                    App.UIcontrolFunctions.createPopout("Defeat!", "You have lost the game. Your opponent is now validating their board. If you don't want to wait for them to do that, you can hit abandon game or reload the page to start a new game, but you might miss out on a potential payout.", null, null, null, false);
                 }
             });
             instance.Foul().on('data', event => {
@@ -995,13 +979,6 @@ App = {
         App.MerkleHelperFunctions.leafNodes.forEach(element => {
             proofs.push(App.MerkleHelperFunctions.computedTree.getHexProof(element))
         });
-        console.log("Tiles: " + tiles);
-        console.log("Ships:" + App.ships);
-        console.log("Leaf nodes: " + App.MerkleHelperFunctions.leafNodes);
-        console.log("Proofs: " + proofs);
-        console.log("Typeof proofs[] is: " + typeof(proofs));
-        console.log("Typeof proofs[0] is: " + typeof(proofs[0]));
-        console.log("Typeof proofs[0][0] is: " + typeof(proofs[0][0]));
         App.contracts.Battleships.deployed().then(function(instance) {
             battleshipsInstance = instance;
             return battleshipsInstance.VerifyWinner(App.currGameID, tiles, App.ships, App.MerkleHelperFunctions.leafNodes, proofs, App.MerkleHelperFunctions.board_root, {from: App.account});
