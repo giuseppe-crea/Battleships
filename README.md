@@ -284,3 +284,12 @@ Each test is supposed to test a different logic partition of the contract and te
 Sadly, code coverage for truffle suite doesn't seem to be available, at least not anymore, as the only tool which seemingly provided this functionality has deprecated support for Truffle.
 
 ## Gas Cost Analysis
+
+Thanks to our extensive unit testing we can instantly compute the gas cost of a match played on our contract. Using the match_simulation.js test we run a normal match, and in it we extrapolate the average cost of gas for a single fire-reply turn. Multiplying that by 64, the maximum number of possible turns, we have a fairly solid approximation of the gas cost of a match.
+Adding to that the cost to start a game and claim your winnings afterwards we come to a total of around 7.6M gas, which as of today, june 2023, would run us just shy of $280 on ETH mainnet.
+
+| Phase           | Gas           | Cost  |
+| --------------- |:-------------:| -----:|
+| Initialization  | 650325        | $23.5 |
+| Core game loop  | 6327680       |  $229 |
+| Coda and payout | 710471        | $25.7 |
