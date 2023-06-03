@@ -55,7 +55,7 @@ Run `npm install` to install all dependencies.
     
     If your Ganache network is not running on `http://localhost:7545` you will need to change the network address in the truffle-config file.
 
-2. Run `truffle migrate` to deploy the contract to the local Ganache network
+2. Run `truffle compile` followed by `truffle migrate` to compile and deploy the contract to the local Ganache network
 
 3. Run `npm run dev` to start the web3 app
 
