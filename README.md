@@ -311,3 +311,5 @@ Let's break down the cost of the game itself function by function.
 | CheckFoulTimer  | 50000         |    $2 |
 | AbandonGame     | 57724         |  $2.4 |
 | DeclineStake    | 102176        |  $4.2 |
+
+Gas cost is subject to slight variations depending on the state of the contract, as some functions will cost more or less depending on the amount of data they have to process, but the above table should give a good idea of the cost of each function.
