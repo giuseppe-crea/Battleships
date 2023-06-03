@@ -290,6 +290,8 @@ App = {
             App.UIcontrolFunctions.enableJoinGameButton();
             App.UIcontrolFunctions.enableGameIDInput();
             App.UIcontrolFunctions.disableVerifyVictoryButton();
+            document.getElementById("stake-value-input").value = null;
+            document.getElementById("game-id-input").value = null;
         },
 
         joinedGameUIState: function() {
@@ -888,8 +890,8 @@ App = {
         if(stakeValue === undefined) {
             stakeValue = parseInt(document.getElementById("stake-value-input").value);
         }
-        if(isNaN(stakeValue)) {
-            stakeValue = parseInt(0);
+        if(isNaN(stakeValue) || stakeValue < 1) {
+            stakeValue = parseInt(1);
         }
         document.getElementById("stake-value-input").value = stakeValue;
         var battleshipsInstance;
@@ -901,7 +903,9 @@ App = {
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
                 return battleshipsInstance.proposeStake(App.currGameID, stakeValue, {from: account});
-            })
+            }).then(function(result) {
+                document.getElementById("stake-value-input").value = stakeValue;
+            });
         });
     },
 
@@ -916,7 +920,11 @@ App = {
             App.contracts.Battleships.deployed().then(function(instance) {
                 battleshipsInstance = instance;
                 return battleshipsInstance.payStake(App.currGameID, {from: account, value: stakeValue});
-            })
+            }).then(function(result) {
+                document.getElementById("stake-value-input").value = stakeValue;
+                // disable the stake input field
+                document.getElementById("stake-value-input").disabled = true;
+            });
         });
     },
 

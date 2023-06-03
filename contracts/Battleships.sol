@@ -24,8 +24,6 @@ contract Battleships {
     // In this struct we save the view a player has of its opponent's board
     struct Board{
         bool valid;
-        // N*N matrix of bits to store hits
-        // bool[BOARD_SIZE][BOARD_SIZE] shots;
         // # of enemy pieces still left on the board
         // goes down by one each time we receive one 'you hit' event
         uint totalPieces;
@@ -52,8 +50,6 @@ contract Battleships {
         uint decidedStake;
         // used for foul accusation, a foul is triggered after 5 blocks
         uint blockNumber;
-        // player 0 or player 1
-        // might turn it into address, we will see
         address accuser;
         // whether or not this game should be in the public pool of joinable games
         bool privateGame;
@@ -65,8 +61,6 @@ contract Battleships {
     Game private gameTrampoline;
     Player private playerTrampoline;
     Board private trampolineBoard;
-    // used in generating UUIDs for the games
-    // for now we are gonna use this as-is
     // start at 1 as 0 is used for a non-existing game
     // we just don't deal with it overflowing because it's realistically impossible
     uint private gameCounter;
@@ -438,11 +432,6 @@ contract Battleships {
                     openGames[gameID].players[indexes[1]].shots_board.board[location] = true;
                     // if this was our last piece, we lost
                     if(openGames[gameID].players[indexes[1]].shots_board.totalPieces == 0){
-                        /*
-                        openGames[gameID].winner = openGames[gameID].players[indexes[1]].playerAddress;
-                        openGames[gameID].state = GameStates.CHECKING_WINNER;
-                        RequestWinnerBoard(gameID, openGames[gameID].winner);
-                        */
                         TestWinner(gameID, openGames[gameID].players[indexes[1]].playerAddress);
                         return;
                     }
@@ -501,8 +490,6 @@ contract Battleships {
             if(ships[i])
                 shipsTotal++;
             require(nodes[i] == GenLeafNode(tiles[i], ships[i]), "The node does not match the tile and ship provided");
-            // TODO: fix the frontend so that the line below can parse the calldata correctly
-            // this works in the Chai tests
             require(Merkle.verifyCalldata(proofs[i], root, nodes[i]), "The proof does not match the root and node provided");
         }
         require(shipsTotal == NUMBER_OF_SHIP_SQUARES, "The board does not have the correct number of ships");
