@@ -71,7 +71,7 @@ const merkle_tree_objects = [p0_board_collection[2], p1_board_collection[2]];
 const tiles_p1 = generateRandomNumbers(64);
 const tiles_p2 = generateRandomNumbers(64);
 const target_tile = [tiles_p1, tiles_p2];
-const stakeValue = 5000;
+const stakeValue = 1;
 var winnerIndex;
 var totalGasUsed = 0;
 var totalGasLoop = 0;
@@ -85,14 +85,19 @@ contract("Battleships", function (accounts) {
         battleships = await Battleships.deployed();
         tmpReply = await battleships.newGame(false, {from: accounts[0]});
         totalGasUsed += tmpReply.receipt.gasUsed;
-        await battleships.joinGame(1, {from: accounts[1]});
+        console.log("Gas used for newGame: " + tmpReply.receipt.gasUsed);
+        tmpReply = await battleships.joinGame(1, {from: accounts[1]});
+        console.log("Gas used for joinGame: " + tmpReply.receipt.gasUsed);
         tmpReply = await battleships.PlaceShips(1, board_root[0]);
+        console.log("Gas used for PlaceShips: " + tmpReply.receipt.gasUsed);
         totalGasUsed += tmpReply.receipt.gasUsed;
         await battleships.PlaceShips(1, board_root[1], {from: accounts[1]});
         tmpReply = await battleships.proposeStake(1, stakeValue);
+        console.log("Gas used for proposeStake: " + tmpReply.receipt.gasUsed);
         totalGasUsed += tmpReply.receipt.gasUsed;
         await battleships.proposeStake(1, stakeValue, {from: accounts[1]});
         tmpReply = await battleships.payStake(1, {value: stakeValue});
+        console.log("Gas used for payStake: " + tmpReply.receipt.gasUsed);
         totalGasUsed += tmpReply.receipt.gasUsed;
         await battleships.payStake(1, {from: accounts[1], value: stakeValue});
     });
@@ -104,11 +109,14 @@ contract("Battleships", function (accounts) {
             var round_number = 0;
             var reply;
             var winner;
+            var gasShot;
+            var gasCheck;
             do{
                 //console.log("Round " + round_number + ", turn "+ turn_number + ".");
                 // one player fires
                 //console.log("Firing from player "+ p1 +" onto tile "+ target_tile[p1][round_number]+".");
                 reply = await battleships.FireTorpedo(1, target_tile[p1][round_number], {from:accounts[p1]});
+                gasShot = reply.receipt.gasUsed;
                 totalGasLoop += reply.receipt.gasUsed;
                 if(reply.logs[0].event == 'RequestBoard') break;
                 // the other player responds
@@ -117,6 +125,7 @@ contract("Battleships", function (accounts) {
                 var nodeProof = merkle_tree_objects[p2].getHexProof(targetNode);
                 //console.log("Checking the shot from player "+ p2 +" for expected value of "+ shipPresence+".");
                 reply = await battleships.ConfirmShot(1, target_tile[p1][round_number], shipPresence, targetNode, nodeProof, {from: accounts[p2]})
+                gasCheck = reply.receipt.gasUsed;
                 totalGasLoop += reply.receipt.gasUsed;
                 if(reply.logs[0].event == 'RequestBoard') break;
                 // swap roles
@@ -138,6 +147,8 @@ contract("Battleships", function (accounts) {
             console.log("");
             console.log("Congratz, someone actually won! It was "+ winner + ", address " + accounts[winnerIndex]);
             totalGasLoop = Math.floor(totalGasLoop/turn_number);
+            console.log("Gas used for a single fireTorpedo: " + gasShot);
+            console.log("Gas used for a single confirmShot: " + gasCheck);
         })
         it("Winning player attempts to validate their board.", async () => {
             let tiles = [];
@@ -153,6 +164,7 @@ contract("Battleships", function (accounts) {
             const reply = await battleships.VerifyWinner(1, tiles, ships, leaf_nodes[winnerIndex], proofs, board_root[winnerIndex], {from:accounts[winnerIndex]});
             assert.equal(reply.logs[0].event, 'Victory', "Event of type Victory did not fire.");
             totalGasCoda += reply.receipt.gasUsed;
+            console.log("Gas used for VerifyWinner: " + reply.receipt.gasUsed);
             const reply_two = await battleships.checkGameState(1);
             assert.equal(reply_two, Battleships.GameStates.PAYABLE, "Contract not payable.");
         })
@@ -163,6 +175,7 @@ contract("Battleships", function (accounts) {
 
             const reply = await battleships.WithdrawWinnings(1, {from:accounts[winnerIndex]});
             const gasWithdrawal = reply.receipt.gasUsed;
+            console.log("Gas used for WithdrawWinnings: " + gasWithdrawal);
             totalGasCoda += gasWithdrawal;
             
             let actualBalance = await web3.eth.getBalance(accounts[winnerIndex]);

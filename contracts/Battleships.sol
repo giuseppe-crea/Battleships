@@ -459,8 +459,7 @@ contract Battleships {
     }
 
     // this function generates a node locally in the same way a client would generate it
-    // it could be internal, we keep it public for now for debug purposes
-    function GenLeafNode(uint8 tile, bool ship) pure public returns (bytes32) {
+    function GenLeafNode(uint8 tile, bool ship) pure internal returns (bytes32) {
         return keccak256(abi.encode(tile,ship));
     }
 

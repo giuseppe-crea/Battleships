@@ -163,7 +163,7 @@ If this had been a concern simply adding an additional source of randomness when
 
 ### Contract
 
-The contract implements a total of 20 public functions, plus one final public debug function which can only be called by the contract's owner, and should be removed for final deplyment in a real environment.
+The contract implements a total of 13 public or external functions, plus one final public debug function which can only be called by the contract's owner, and should be removed for final deplyment in a real environment.
 
 All contract functions execute a long list of checks on the sender, gameID, game State and any other relevant values, making sure an illegal move can never be performed.
 
@@ -293,3 +293,21 @@ Adding to that the cost to start a game and claim your winnings afterwards we co
 | Initialization  | 650325        | $23.5 |
 | Core game loop  | 6327680       |  $229 |
 | Coda and payout | 710471        | $25.7 |
+
+Let's break down the cost of the game itself function by function.
+
+| Function        | Gas           | Cost  |
+| --------------- |:-------------:| -----:|
+| newGame         | 245751        | $10.3 |
+| joinGame        | 110753        |  $4.6 |
+| PlaceShips      | 235301        |  $9.8 |
+| proposeStake    | 128911        |  $5.3 |
+| payStake        | 40350         |  $1.6 |
+| FireTorpedo     | 42369         |  $1.7 |
+| CheckShot       | 79184         |  $3.3 |
+| VerifyWinner    | 602056        | $25.2 |
+| WithdrawWinnings| 108115        |  $4.5 |
+| FoulAccusation  | 78201         |  $3.2 |
+| CheckFoulTimer  | 50000         |    $2 |
+| AbandonGame     | 57724         |  $2.4 |
+| DeclineStake    | 102176        |  $4.2 |

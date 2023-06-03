@@ -109,7 +109,8 @@ contract("Battleships", function (accounts) {
             await battleships.proposeStake(gameID, stakeValue, {from: accounts[1]});
         })
         afterEach("Trigger and resolve a foul.", async () =>{
-            const one = await battleships.FoulAccusation(gameID, {from:accounts[p1]});  
+            const one = await battleships.FoulAccusation(gameID, {from:accounts[p1]}); 
+            console.log("Foul cost: " + one.receipt.gasUsed); 
             assert.equal(one.logs[0].event, 'Foul', "Event of type Foul did not fire.")
             assert.equal(one.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
             assert.equal(one.logs[0].args[1], accounts[p2], "Event was emitted for the wrong from.");
@@ -118,6 +119,7 @@ contract("Battleships", function (accounts) {
                 await advanceBlock;
             }
             const two = await battleships.CheckFoulTimer(gameID, {from:accounts[p1]});
+            console.log("CheckFoulTimer cost: " + two.receipt.gasUsed);
             assert.equal(two.logs[0].event, 'RequestBoard', "Event of type RequestBoard did not fire.")
             assert.equal(two.logs[0].args[0], gameID, "Event was emitted for the wrong gameID.");
             assert.equal(two.logs[0].args[1], accounts[p1], "Event was emitted for the wrong from.");
