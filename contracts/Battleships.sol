@@ -8,9 +8,9 @@ contract Battleships {
     uint8 public constant BOARD_SIZE = 8;
     enum GameStates{
         WAITING, 
+        PLACING_SHIPS, 
         SETTING_STAKE, 
         ACCEPTING_PAYMENT,
-        PLACING_SHIPS, 
         P0_FIRING,
         P1_CHECKING,
         P1_FIRING,
@@ -24,8 +24,6 @@ contract Battleships {
     // In this struct we save the view a player has of its opponent's board
     struct Board{
         bool valid;
-        // N*N matrix of bits to store hits
-        // bool[BOARD_SIZE][BOARD_SIZE] shots;
         // # of enemy pieces still left on the board
         // goes down by one each time we receive one 'you hit' event
         uint totalPieces;
@@ -52,8 +50,6 @@ contract Battleships {
         uint decidedStake;
         // used for foul accusation, a foul is triggered after 5 blocks
         uint blockNumber;
-        // player 0 or player 1
-        // might turn it into address, we will see
         address accuser;
         // whether or not this game should be in the public pool of joinable games
         bool privateGame;
@@ -65,8 +61,6 @@ contract Battleships {
     Game private gameTrampoline;
     Player private playerTrampoline;
     Board private trampolineBoard;
-    // used in generating UUIDs for the games
-    // for now we are gonna use this as-is
     // start at 1 as 0 is used for a non-existing game
     // we just don't deal with it overflowing because it's realistically impossible
     uint private gameCounter;
@@ -90,12 +84,14 @@ contract Battleships {
     event AcceptingBoards(uint _gameID);
     event BoardAcknowledgeEvent(uint _gameID, address _player);
     event PlayerZeroTurn(uint _gameID);
-    event ShotsFired(uint _gameID, uint8 _location);
-    event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity);
+    event ShotsFired(uint _gameID, uint8 _location, address _from);
+    event ShotsChecked(uint _gameID, uint8 _location, bool _claim, bool _validity, address _from);
     event RequestBoard(uint _gameID, address _winner);
     event Victory(uint _gameID, address _winner);
     event Foul(uint _gameID, address _accused, uint _block);
+    event GameEnded(uint _gameID);
 
+    error NoOpenGames();
     error InvalidGameID();
     error NotInGame();
     error StakeAlreadyDeposited();
@@ -187,7 +183,7 @@ contract Battleships {
         if(gameID == 0){
             // pick an unassigned game in sequential order
             gameID = lastOpenGame;
-            while(gameID <= gameCounter){
+            while (gameID < gameCounter){
                 // ignore games with sender as host (you can still join your own games directly if you're that lonely)
                 if(openGames[gameID].valid == true && 
                     openGames[gameID].state == GameStates.WAITING && 
@@ -197,11 +193,15 @@ contract Battleships {
                 }
                 gameID++;
             }
-            // update the lastOpenGame counter no matter what
-            lastOpenGame = gameID;
         }
         // if the game wasn't valid, throw an error
-        assert(openGames[gameID].valid);
+        if(!openGames[gameID].valid)
+            revert NoOpenGames();
+
+        assert(openGames[gameID].state == GameStates.WAITING);
+
+        // update the lastOpenGame counter no matter what
+        lastOpenGame = gameID + 1;
         // set msg sender as this game's player 2
         Player storage challenger = playerTrampoline;
         challenger.playerAddress = msg.sender;
@@ -309,6 +309,40 @@ contract Battleships {
             emit PlayerZeroTurn(gameID);
         }
     }
+
+    function deleteGame(uint gameID) internal{ 
+        delete openGames[gameID].players[0].shots_board;
+        delete openGames[gameID].players[1].shots_board;
+        delete openGames[gameID].players[0];
+        delete openGames[gameID].players[1];
+        delete openGames[gameID];
+    }
+
+    function declineStake(uint gameID) gameExists(gameID) isInGame(gameID) assertState(gameID, GameStates.ACCEPTING_PAYMENT) external {
+        // if this player has already paid the stake, they can't decline it
+        if((msg.sender == openGames[gameID].players[0].playerAddress && openGames[gameID].players[0].hasPaidStake) ||
+            (msg.sender == openGames[gameID].players[1].playerAddress && openGames[gameID].players[1].hasPaidStake))
+            revert StakeAlreadyDeposited();
+        // now we check who the sender is
+        uint senderIndex;
+        uint challengerIndex;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            senderIndex = 0;
+            challengerIndex = 1;
+        }else{
+            senderIndex = 1;
+            challengerIndex = 0;
+        }
+        // check if the opponent has already paid its stake
+        if(openGames[gameID].players[challengerIndex].hasPaidStake){
+            // if they have, we refund it
+            (bool success, ) = openGames[gameID].players[challengerIndex].playerAddress.call{value:openGames[gameID].decidedStake}("");
+            require(success);
+        }
+        // then we delete the game
+        deleteGame(gameID);
+        emit GameEnded(gameID);
+    }
     
     function checkGamePayable(uint gameID) public view returns (bool) {
         if (openGames[gameID].valid && openGames[gameID].players[0].valid && openGames[gameID].players[1].valid)
@@ -364,7 +398,7 @@ contract Battleships {
         if (openGames[gameID].players[indexes[0]].shots_board.totalShots == 0){
             TestWinner(gameID, msg.sender);
         } else {
-            emit ShotsFired(gameID, location);
+            emit ShotsFired(gameID, location, msg.sender);
         }
     }
 
@@ -398,11 +432,6 @@ contract Battleships {
                     openGames[gameID].players[indexes[1]].shots_board.board[location] = true;
                     // if this was our last piece, we lost
                     if(openGames[gameID].players[indexes[1]].shots_board.totalPieces == 0){
-                        /*
-                        openGames[gameID].winner = openGames[gameID].players[indexes[1]].playerAddress;
-                        openGames[gameID].state = GameStates.CHECKING_WINNER;
-                        RequestWinnerBoard(gameID, openGames[gameID].winner);
-                        */
                         TestWinner(gameID, openGames[gameID].players[indexes[1]].playerAddress);
                         return;
                     }
@@ -410,17 +439,16 @@ contract Battleships {
             }
             // rotate state
             openGames[gameID].state == GameStates.P1_CHECKING ? openGames[gameID].state = GameStates.P1_FIRING : openGames[gameID].state = GameStates.P0_FIRING;
-            emit ShotsChecked(gameID, location, isHit, true);
+            emit ShotsChecked(gameID, location, isHit, true, msg.sender);
         } else {
             // else we emit a 'shot failed to validate' message
             // keep in mind the foul for this user is NOT triggered automatically.
-            emit ShotsChecked(gameID, location, isHit, false);
+            emit ShotsChecked(gameID, location, isHit, false, msg.sender);
         }
     }
 
     // this function generates a node locally in the same way a client would generate it
-    // it could be internal, we keep it public for now for debug purposes
-    function GenLeafNode(uint8 tile, bool ship) pure public returns (bytes32) {
+    function GenLeafNode(uint8 tile, bool ship) pure internal returns (bytes32) {
         return keccak256(abi.encode(tile,ship));
     }
 
@@ -442,17 +470,17 @@ contract Battleships {
     bytes32 root
     ) public {
         uint winnerIndex;
-        assert(openGames[gameID].valid);
-        assert(openGames[gameID].state == GameStates.CHECKING_WINNER);
+        require(openGames[gameID].valid, "Game does not exist");
+        require(openGames[gameID].state == GameStates.CHECKING_WINNER, "Game is not in the CHECKING_WINNER state");
         if(openGames[gameID].winner == openGames[gameID].players[0].playerAddress){
             winnerIndex = 0;
         } else {
             winnerIndex = 1;
         }
-        assert(openGames[gameID].winner == msg.sender);
-        assert(root == openGames[gameID].players[winnerIndex].boardTreeRoot);
-        assert(tiles.length == (BOARD_SIZE*BOARD_SIZE));
-        assert(ships.length == (BOARD_SIZE*BOARD_SIZE));
+        require(openGames[gameID].winner == msg.sender, "Only the winner can verify their board");
+        require(root == openGames[gameID].players[winnerIndex].boardTreeRoot, "The root provided does not match the root of the board");
+        require(tiles.length == (BOARD_SIZE*BOARD_SIZE), "The tiles array is not the correct size");
+        require(ships.length == (BOARD_SIZE*BOARD_SIZE), "The ships array is not the correct size");
         // First operation: make sure this board really has the required number of ships on it
         // and make sure the winner didn't send us a different board
         // in the same cycle, verify that the node is part of the tree
@@ -461,15 +489,39 @@ contract Battleships {
         for(uint8 i = 0; i < (BOARD_SIZE*BOARD_SIZE); i++){
             if(ships[i])
                 shipsTotal++;
-            assert(nodes[i] == GenLeafNode(tiles[i], ships[i]));
-            assert(Merkle.verifyCalldata(proofs[i], root, nodes[i]));
+            require(nodes[i] == GenLeafNode(tiles[i], ships[i]), "The node does not match the tile and ship provided");
+            require(Merkle.verifyCalldata(proofs[i], root, nodes[i]), "The proof does not match the root and node provided");
         }
-        assert(shipsTotal == NUMBER_OF_SHIP_SQUARES);
+        require(shipsTotal == NUMBER_OF_SHIP_SQUARES, "The board does not have the correct number of ships");
         // we don't use a conditional branch to alert the other player, as a Foul has already been triggered.
         openGames[gameID].canPay = true;
         openGames[gameID].state = GameStates.PAYABLE;
         ClearFoul(gameID);
         emit Victory(gameID, msg.sender);
+    }
+    
+    function AbandonGame(uint gameID) gameExists(gameID) isInGame(gameID) external {
+        // see if the game has a second player
+        uint opponentIndex;
+        if(msg.sender == openGames[gameID].players[0].playerAddress){
+            opponentIndex = 1;
+        } else {
+            opponentIndex = 0;
+        }
+        // check if both have paid the stake
+        if(openGames[gameID].players[opponentIndex].hasPaidStake && openGames[gameID].players[1 - opponentIndex].hasPaidStake){
+            // if they have, we declare the opponent the winner
+            TestWinner(gameID, openGames[gameID].players[opponentIndex].playerAddress);
+        } else {
+            // if only the opponent has paid the stake, we refund it
+            if(openGames[gameID].players[opponentIndex].hasPaidStake){
+                (bool success, ) = openGames[gameID].players[opponentIndex].playerAddress.call{value:openGames[gameID].decidedStake}("");
+                require(success);
+            }
+            // this delition only happens in this branch as the game will be deleted normally from testwinner otherwise
+            emit GameEnded(gameID);
+            deleteGame(gameID);
+        } // we keep the stake if the user cancelling the game has paid it. If they want the stake back because their oppoent is afk they should declare a foul instead of cancelling
     }
 
     function WithdrawWinnings(uint gameID) gameExists(gameID) isWinner(gameID) assertState(gameID, GameStates.PAYABLE) external {
@@ -477,6 +529,8 @@ contract Battleships {
         openGames[gameID].state = GameStates.DONE;
         (bool success, ) = msg.sender.call{value:amountOwed}("");
         require(success);
+        emit GameEnded(gameID);
+        deleteGame(gameID);
     }
 
     // a player can accuse another player of being afk if they don't act within X blocks
